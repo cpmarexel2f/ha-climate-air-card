@@ -403,4 +403,3 @@ caRegister(
   "Every air conditioner, air purifier and fan at a glance; tap a device for its full card",
   ClimateAirOverviewCardEditor,
 );
-
