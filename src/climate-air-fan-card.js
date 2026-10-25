@@ -31,6 +31,35 @@ const CA_FAN_ART =
   '<circle cx="40" cy="32" r="5.5" fill="#f4f6f8" stroke="#aab3bd" stroke-width="1"/><circle class="led" cx="40" cy="32" r="1.8"/>' +
   "</g></svg>";
 
+CA_ART.fan = {
+  render: (_variant, s) => ({
+    svg: CA_FAN_ART,
+    cls: [s.running && s.osc ? "osc" : "", s.running && s.natural ? "natural" : ""],
+    style: `--ca-spin:${caSpin(s.pct)}s`,
+  }),
+  styles: `
+    .k-fan .blades { stroke: #7fb2dd; stroke-width: .5; transform-box: view-box; transform-origin: 40px 32px; }
+    .k-fan .head { transform-box: view-box; transform-origin: 40px 32px; }
+    .k-fan .wind { fill: none; stroke: var(--ca-color); stroke-width: 1.6; stroke-linecap: round; }
+    .k-fan .wind path { opacity: 0; transform-box: fill-box; transform-origin: center; }
+    .k-fan .led { fill: #9aa5b1; }
+    .k-fan .c-stop { stop-color: var(--ca-color); }
+    .k-fan .floor { opacity: 0; transition: opacity .6s; }
+    .k-fan.running .floor { opacity: 1; }
+    .k-fan.running .led { fill: var(--ca-color); }
+    .k-fan.running .blades { animation: ca-spin var(--ca-spin, 1s) linear infinite; }
+    .k-fan.running .wind path { animation: ca-breeze 1.8s ease-out infinite; }
+    .k-fan.running .wind path:nth-child(3n+2) { animation-delay: .6s; }
+    .k-fan.running .wind path:nth-child(3n) { animation-delay: 1.2s; }
+    .k-fan.running.natural .wind path { animation: ca-gust 3.6s ease-in-out infinite; }
+    .k-fan.running.osc .head { animation: ca-osc 7s ease-in-out infinite; }
+    @keyframes ca-breeze { 0% { opacity: 0; transform: scale(.6); } 35% { opacity: .9; } 100% { opacity: 0; transform: scale(1.25); } }
+    @keyframes ca-gust { 0%, 100% { opacity: 0; } 20% { opacity: .9; } 45% { opacity: .15; } 60% { opacity: .7; } 80% { opacity: 0; } }
+    @keyframes ca-osc { 0%, 100% { transform: translateX(0) scaleX(1); } 25% { transform: translateX(-3px) scaleX(.84); }
+                        50% { transform: translateX(0) scaleX(1); } 75% { transform: translateX(3px) scaleX(.84); } }
+  `,
+};
+
 class ClimateAirFanCard extends CaCard {
   static get kind() {
     return "fan";
@@ -71,13 +100,8 @@ class ClimateAirFanCard extends CaCard {
       osc,
       preset,
       chips,
-      artClasses: [on && osc ? "osc" : "", on && natural ? "natural" : ""],
-      artStyle: `--ca-spin:${caSpin(pct)}s`,
+      natural,
     };
-  }
-
-  _art() {
-    return CA_FAN_ART;
   }
 
   _heroInfo(m) {
@@ -143,28 +167,9 @@ class ClimateAirFanCard extends CaCard {
   }
 
   static styles = `
-    .k-fan .blades { stroke: #7fb2dd; stroke-width: .5; transform-box: view-box; transform-origin: 40px 32px; }
-    .k-fan .head { transform-box: view-box; transform-origin: 40px 32px; }
-    .k-fan .wind { fill: none; stroke: var(--ca-color); stroke-width: 1.6; stroke-linecap: round; }
-    .k-fan .wind path { opacity: 0; transform-box: fill-box; transform-origin: center; }
-    .k-fan .led { fill: #9aa5b1; }
-    .k-fan .c-stop { stop-color: var(--ca-color); }
-    .k-fan .floor { opacity: 0; transition: opacity .6s; }
-    .k-fan.running .floor { opacity: 1; }
-    .k-fan.running .led { fill: var(--ca-color); }
-    .k-fan.running .blades { animation: ca-spin var(--ca-spin, 1s) linear infinite; }
-    .k-fan.running .wind path { animation: ca-breeze 1.8s ease-out infinite; }
-    .k-fan.running .wind path:nth-child(3n+2) { animation-delay: .6s; }
-    .k-fan.running .wind path:nth-child(3n) { animation-delay: 1.2s; }
-    .k-fan.running.natural .wind path { animation: ca-gust 3.6s ease-in-out infinite; }
-    .k-fan.running.osc .head { animation: ca-osc 7s ease-in-out infinite; }
     .row.fields { align-items: flex-end; flex-wrap: wrap; }
     .row.fields > .field { flex: 1 1 110px; }
     .rot { display: flex; gap: 6px; }
-    @keyframes ca-breeze { 0% { opacity: 0; transform: scale(.6); } 35% { opacity: .9; } 100% { opacity: 0; transform: scale(1.25); } }
-    @keyframes ca-gust { 0%, 100% { opacity: 0; } 20% { opacity: .9; } 45% { opacity: .15; } 60% { opacity: .7; } 80% { opacity: 0; } }
-    @keyframes ca-osc { 0%, 100% { transform: translateX(0) scaleX(1); } 25% { transform: translateX(-3px) scaleX(.84); }
-                        50% { transform: translateX(0) scaleX(1); } 75% { transform: translateX(3px) scaleX(.84); } }
   `;
 }
 

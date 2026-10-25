@@ -158,19 +158,37 @@ test("overview: tapping the icon turns the device off, tapping the tile unfolds 
   assert.equal(panel.children[0]?._config.entity, "climate.air_conditioner");
 });
 
-test("overview: icons per kind of device, per device, and for the header", () => {
+test("overview: each tile shows its device's illustration, animated while it runs", () => {
+  const { body } = overview({ zoom: false });
+  assert.match(body, /data-toggle="climate\.air_conditioner"[^>]*><div class="picture k-aircon st-cool running m-cool active swing-v"/);
+  assert.match(body, /data-toggle="fan\.bedroom_fan_fan"[^>]*><div class="picture k-fan st-on running osc natural" style="--ca-spin:1\.13s"/);
+  assert.match(body, /data-toggle="fan\.office_fan_fan"[^>]*><div class="picture k-fan st-off"/);
+  // Each tile's SVG ids are its own: a gradient takes the colours of its own device.
+  const ids = [...body.matchAll(/id="(ca-[a-z0-9-]+)"/g)].map((m) => m[1]);
+  assert.equal(new Set(ids).size, ids.length);
+  assert.match(body, /url\(#ca-pf-purifier-\d+\)/);
+});
+
+test("overview: illustrations per kind of device or per device, guessed from the model otherwise", () => {
+  const h = makeHass();
+  h.devices.dev_p1.model = "Smartmi Air Purifier P2";
+  const { body } = overview({ zoom: false, illustrations: { aircon: "window", "fan.bedroom_purifier": "cylinder" } }, h);
+  assert.match(body, /class="ic pic"[^>]*><div class="picture k-aircon[^"]*"[^>]*><svg[^>]*>.*?class="ofan"/s);
+  assert.match(body, /data-toggle="fan\.bedroom_purifier"[^>]*><div class="picture k-purifier[^>]*><svg[^>]*>(?:(?!<\/svg>).)*M21 13V85/s);
+  // P2 in the model: the square box (its slatted top outlet).
+  assert.match(body, /data-toggle="fan\.living_room_purifier_air_purifier"[^>]*><div class="picture k-purifier[^>]*><svg[^>]*>(?:(?!<\/svg>).)*M19\.5 19\.6v3\.8/s);
+});
+
+test("overview: an icon replaces the illustration, per kind of device or per device", () => {
   const { body, head } = overview({
     zoom: false,
     icon: "mdi:home-thermometer",
-    icons: { fan: "mdi:fan-speed-1", "fan.bedroom_fan_fan": "mdi:ceiling-fan", "climate.air_conditioner": "mdi:air-conditioner" },
+    icons: { fan: "mdi:fan-speed-1", "fan.bedroom_fan_fan": "mdi:ceiling-fan" },
   });
   assert.match(head, /mdi:home-thermometer/);
-  // The device's own icon wins over its kind's; the other fan takes the kind's icon.
   assert.match(body, /data-toggle="fan\.bedroom_fan_fan"[^>]*><ha-icon icon="mdi:ceiling-fan">/);
   assert.match(body, /data-toggle="fan\.office_fan_fan"[^>]*><ha-icon icon="mdi:fan-speed-1">/);
-  // A running air conditioner shows its mode icon, unless one is set.
-  assert.match(body, /data-toggle="climate\.air_conditioner"[^>]*><ha-icon icon="mdi:air-conditioner">/);
-  assert.match(overview().body, /data-toggle="climate\.air_conditioner"[^>]*><ha-icon icon="mdi:snowflake">/);
+  assert.match(body, /data-toggle="climate\.air_conditioner"[^>]*><div class="picture k-aircon/);
 });
 
 test("overview editor: an icons section with each kind of device, then each device", () => {
@@ -183,6 +201,9 @@ test("overview editor: an icons section with each kind of device, then each devi
   assert.equal(ed._form.computeLabel({ name: "fan" }), "Tous les ventilateurs");
   assert.equal(ed._form.computeLabel({ name: "fan.bedroom_fan_fan" }), "Ventilateur chambre");
   assert.equal(ed._form.computeLabel({ name: "title" }), "Titre");
+  // Illustrations: only the kinds that have several (no fans), then their devices.
+  const ill = ed._form.schema.find((s) => s.name === "illustrations").schema.map((s) => s.name);
+  assert.deepEqual([...ill], ["aircon", "purifier", "climate.air_conditioner", "fan.bedroom_purifier", "fan.living_room_purifier_air_purifier"]);
   const out = lib.caCleanConfig({ icons: { fan: "", "fan.bedroom_fan_fan": "mdi:ceiling-fan" } }, {}, "custom:climate-air-overview-card");
   assert.deepEqual(JSON.parse(JSON.stringify(out)), { type: "custom:climate-air-overview-card", icons: { "fan.bedroom_fan_fan": "mdi:ceiling-fan" } });
 });

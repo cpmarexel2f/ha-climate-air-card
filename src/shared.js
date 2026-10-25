@@ -95,7 +95,9 @@ const CA_I18N = {
     ed_title: "Title",
     ed_title_helper: "Leave empty for “Climate & air”",
     ed_icons: "Icons",
-    ed_icons_helper: "An icon for every device of a kind, then for each device; empty keeps the default icon",
+    ed_icons_helper: "An icon instead of the illustration, for every device of a kind or for one device; empty keeps the illustration",
+    ed_illustrations: "Illustrations",
+    ed_illustrations_helper: "The look of every device of a kind, then of each device; Automatic picks it from the device model",
     ed_icon_aircon: "All air conditioners",
     ed_icon_purifier: "All air purifiers",
     ed_icon_fan: "All fans",
@@ -197,7 +199,9 @@ const CA_I18N = {
     ed_title: "Titre",
     ed_title_helper: "Laisser vide pour « Climat et air »",
     ed_icons: "Icônes",
-    ed_icons_helper: "Une icône pour tous les appareils d'un type, puis pour chaque appareil ; vide garde l'icône par défaut",
+    ed_icons_helper: "Une icône à la place de l'illustration, pour tous les appareils d'un type ou pour un appareil ; vide garde l'illustration",
+    ed_illustrations: "Illustrations",
+    ed_illustrations_helper: "L'apparence de tous les appareils d'un type, puis de chaque appareil ; Automatique la choisit d'après le modèle",
     ed_icon_aircon: "Tous les climatiseurs",
     ed_icon_purifier: "Tous les purificateurs",
     ed_icon_fan: "Tous les ventilateurs",
@@ -436,7 +440,7 @@ function caName(hass, id) {
 // Subclasses set `static kind` and implement:
 //   _roles()              roles to look for on the device
 //   _model(r)             { state, color, running, statusText, sub, ... } from the resolved entities
-//   _art(m)               the illustration (SVG), animated with CSS while `running`
+// and register the illustration of their kind in CA_ART; `_model` returns what it needs (see CA_ART).
 //   _heroInfo(m)          what sits next to the illustration
 //   _controls(m)          the control sections below
 //   _miniInfo(m)          the lines of the mini card
@@ -626,7 +630,7 @@ class CaCard extends CaElement {
     m.icon = icon;
     m.chips = m.chips || [];
     if (!m.online) m.chips.push(`<span class="chip"><ha-icon icon="mdi:cloud-off-outline"></ha-icon>${this._t("offline")}</span>`);
-    m.art = c.icon ? `<div class="iconart"><ha-icon icon="${caEsc(icon)}"></ha-icon></div>` : this._art(m);
+    m.variant = caVariant(this._hass, kind, r.id, c.illustration);
     m.powerBtn = m.online
       ? `<button class="power${m.running ? " on" : ""}" data-action="power" title="${caEsc(this._t("power"))}" aria-label="${caEsc(this._t("power"))}"><ha-icon icon="mdi:power"></ha-icon></button>`
       : "";
@@ -646,19 +650,11 @@ class CaCard extends CaElement {
       "</ha-card>";
   }
 
-  // The illustration variant: `illustration` from the config, or the one `guess` reads from the device model and name.
-  _variant(guess) {
-    const v = this._config.illustration;
-    if (v && v !== "auto") return v;
-    const id = this._r.id;
-    const dev = this._hass.devices?.[caDeviceOf(this._hass, id)];
-    return guess([dev?.model, dev?.name, dev?.name_by_user, id, this._st(id)?.attributes.friendly_name].filter(Boolean).join(" "));
-  }
-
   _picture(m) {
-    const cls = ["picture", `k-${this.constructor.kind}`, `st-${m.state}`, m.running ? "running" : "", ...(m.artClasses || [])];
-    const style = m.artStyle ? ` style="${m.artStyle}"` : "";
-    return `<div class="${cls.filter(Boolean).join(" ")}"${style}>${m.art}</div>`;
+    if (this._config.icon) {
+      return `<div class="picture${m.running ? " running" : ""}"><div class="iconart"><ha-icon icon="${caEsc(m.icon)}"></ha-icon></div></div>`;
+    }
+    return caPicture(this.constructor.kind, m.variant, m);
   }
 
   // A chip with an icon and a value; `cls` tints it (warn, alert).
@@ -820,7 +816,7 @@ class CaCard extends CaElement {
 
   // ── Styles ──
   _styles(color) {
-    return `<style>${CA_STYLES}${this.constructor.styles || ""}</style><style>:host{--ca-color:${color || CA_IDLE};}</style>`;
+    return `<style>${CA_STYLES}${CA_ART[this.constructor.kind]?.styles || ""}${this.constructor.styles || ""}</style><style>:host{--ca-color:${color || CA_IDLE};}</style>`;
   }
 }
 
@@ -904,8 +900,51 @@ const caBar = (pct, value, icon) =>
 
 const caLine = (icon, text) => `<div class="line"><ha-icon icon="${icon}"></ha-icon><span>${caEsc(text)}</span></div>`;
 
+// ── Illustrations ────────────────────────────────────────────────────────────
+// Each card file registers the illustration of its kind of device, shared with the overview tiles:
+//   CA_ART[kind] = { variants, guess(text), render(variant, s) → { svg, cls, style }, styles }
+// `s` is the device's state as the illustration needs it: running, pct, color, osc, natural, mode, active, swing, display.
+const CA_ART = {};
+
+// The text an illustration variant is guessed from: the device model and names.
+function caVariantText(hass, id) {
+  const dev = hass.devices?.[caDeviceOf(hass, id)];
+  return [dev?.model, dev?.name, dev?.name_by_user, id, hass.states[id]?.attributes.friendly_name].filter(Boolean).join(" ");
+}
+
+// The variant of `kind` to draw for `id`: the one asked for (`illustration`), or the one guessed from the device.
+function caVariant(hass, kind, id, illustration) {
+  const art = CA_ART[kind];
+  if (!art?.variants) return undefined;
+  if (illustration && illustration !== "auto" && art.variants.includes(illustration)) return illustration;
+  return art.guess(caVariantText(hass, id));
+}
+
+// The illustration in its frame: animated while `s.running`. `uid` makes the SVG ids unique when several
+// illustrations share a shadow root (the overview tiles): gradients would otherwise all take the first one's colours.
+function caPicture(kind, variant, s, uid = "") {
+  const art = CA_ART[kind];
+  if (!art) return "";
+  const r = art.render(variant, s);
+  let svg = r.svg;
+  if (uid) svg = svg.replace(/(id="|url\(#)(ca-[a-z0-9]+)/g, `$1$2-${uid}`);
+  const cls = ["picture", `k-${kind}`, `st-${s.state || (s.running ? "on" : "off")}`, s.running ? "running" : "", ...(r.cls || [])];
+  return `<div class="${cls.filter(Boolean).join(" ")}"${r.style ? ` style="${r.style}"` : ""}>${svg}</div>`;
+}
+
+const CA_ART_STYLES = `
+  .picture { position: relative; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  .picture svg { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 3px 6px rgba(0,0,0,.18)); }
+  @keyframes ca-spin { to { transform: rotate(360deg); } }
+  @keyframes ca-blink { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+  @keyframes ca-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(.9); } }
+  @keyframes ca-rise { 0% { opacity: 0; transform: translateY(4px); } 30% { opacity: .9; } 100% { opacity: 0; transform: translateY(-16px); } }
+  @keyframes ca-fall { 0% { opacity: 0; transform: translateY(-4px); } 25% { opacity: .9; } 100% { opacity: 0; transform: translateY(22px); } }
+  @media (prefers-reduced-motion: reduce) { .picture, .picture * { animation: none !important; } }
+`;
+
 // ── Styles ───────────────────────────────────────────────────────────────────
-const CA_STYLES = `
+const CA_STYLES = `${CA_ART_STYLES}
   :host { display: block; height: 100%; }
   ha-card { height: 100%; box-sizing: border-box; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
   .empty { display: flex; align-items: center; gap: 10px; color: var(--secondary-text-color); }
@@ -932,8 +971,7 @@ const CA_STYLES = `
   .zoom:focus-visible { outline: 2px solid var(--primary-color, #03a9f4); outline-offset: 1px; }
 
   .hero { display: flex; align-items: center; gap: 14px; }
-  .picture { position: relative; width: 76px; height: 88px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
-  .picture svg { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 3px 6px rgba(0,0,0,.18)); }
+  .picture { width: 76px; height: 88px; }
   .iconart { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center;
              background: color-mix(in srgb, var(--ca-color) 15%, transparent); color: var(--ca-color); }
   .iconart ha-icon { --mdc-icon-size: 32px; }
@@ -1012,13 +1050,8 @@ const CA_STYLES = `
   .mcontrols { display: flex; gap: 6px; flex-shrink: 0; }
   ha-card.mini .power { width: 40px; height: 40px; }
 
-  @keyframes ca-spin { to { transform: rotate(360deg); } }
-  @keyframes ca-blink { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
-  @keyframes ca-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(.9); } }
-  @keyframes ca-rise { 0% { opacity: 0; transform: translateY(4px); } 30% { opacity: .9; } 100% { opacity: 0; transform: translateY(-16px); } }
-  @keyframes ca-fall { 0% { opacity: 0; transform: translateY(-4px); } 25% { opacity: .9; } 100% { opacity: 0; transform: translateY(22px); } }
   @media (prefers-reduced-motion: reduce) {
-    .picture *, .picture, .dot, .iconart ha-icon { animation: none !important; }
+    .dot, .iconart ha-icon { animation: none !important; }
   }
 `;
 
@@ -1155,9 +1188,9 @@ function caCleanConfig(value, defaults, type) {
     const v = out[k];
     if (v === "" || v == null || (Array.isArray(v) && !v.length) || v === defaults[k]) delete out[k];
   }
-  for (const key of ["entities", "icons"]) {
+  for (const key of ["entities", "icons", "illustrations"]) {
     if (!out[key] || typeof out[key] !== "object" || Array.isArray(out[key])) continue;
-    const e = Object.fromEntries(Object.entries(out[key]).filter(([, v]) => v));
+    const e = Object.fromEntries(Object.entries(out[key]).filter(([, v]) => v && v !== "auto"));
     if (Object.keys(e).length) out[key] = e;
     else delete out[key];
   }

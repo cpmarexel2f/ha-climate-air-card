@@ -117,6 +117,56 @@ const caSwitchIcon = (id) =>
 
 const CA_TEMP_DEBOUNCE = 900;
 
+CA_ART.aircon = {
+  variants: ["split", "portable", "window"],
+  guess: caAirconVariant,
+  render: (variant, s) => {
+    const swing = String(s.swing || "off").toLowerCase();
+    return {
+      svg: caAirconArt(variant, s.display || ""),
+      cls: [
+        `m-${s.mode}`,
+        s.active ? "active" : "",
+        s.running && /vert|both|3d|all|^on$|^swing$/.test(swing) ? "swing-v" : "",
+        s.running && /hor|both|3d|all/.test(swing) ? "swing-h" : "",
+      ],
+    };
+  },
+  styles: `
+    .k-aircon .disp { font: 600 6.6px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; fill: var(--ca-color); }
+    .k-aircon .led { fill: #9aa5b1; }
+    .k-aircon .c-stop { stop-color: var(--ca-color); }
+    .k-aircon .floor { opacity: 0; transition: opacity .6s; }
+    .k-aircon .air { fill: none; stroke: var(--ca-color); stroke-width: 1.8; stroke-linecap: round; }
+    .k-aircon .flakes { fill: none; stroke: var(--ca-color); stroke-width: 1; stroke-linecap: round; }
+    .k-aircon .drops { fill: var(--ca-color); }
+    .k-aircon .heat { fill: none; stroke: var(--ca-color); stroke-width: 1.3; stroke-linecap: round; }
+    .k-aircon .air path, .k-aircon .flakes path, .k-aircon .drops path, .k-aircon .heat path { opacity: 0; transform-box: view-box; }
+    .k-aircon .flakes, .k-aircon .drops, .k-aircon .heat { display: none; }
+    .k-aircon.m-cool .flakes, .k-aircon.m-dry .drops, .k-aircon.m-heat .heat { display: inline; }
+    .k-aircon .flap { transform-box: fill-box; transform-origin: 50% 0; }
+    .k-aircon .air { transform-box: fill-box; transform-origin: 50% 0; }
+    .k-aircon .ofan { transform-box: fill-box; transform-origin: center; }
+    .k-aircon.running .floor { opacity: 1; }
+    .k-aircon.running .led { fill: var(--ca-color); }
+    .k-aircon.running.active .led { animation: ca-blink 2s ease-in-out infinite; }
+    .k-aircon.running .air path { animation: ca-fall 2.4s ease-in infinite; }
+    .k-aircon.running .air path:nth-child(2) { animation-delay: .8s; }
+    .k-aircon.running .air path:nth-child(3) { animation-delay: 1.6s; }
+    .k-aircon.running:not(.active) .air path { animation-duration: 4.2s; }
+    .k-aircon.running .flakes path, .k-aircon.running .drops path { animation: ca-fall 3s linear infinite; }
+    .k-aircon.running .heat path { animation: ca-fall 2.6s ease-in-out infinite; }
+    .k-aircon.running .flakes path:nth-child(2), .k-aircon.running .drops path:nth-child(2), .k-aircon.running .heat path:nth-child(2) { animation-delay: 1s; }
+    .k-aircon.running .flakes path:nth-child(3), .k-aircon.running .drops path:nth-child(3), .k-aircon.running .heat path:nth-child(3) { animation-delay: 2s; }
+    .k-aircon.running .up path { animation-name: ca-rise; }
+    .k-aircon.running.active .ofan { animation: ca-spin .8s linear infinite; }
+    .k-aircon.running.swing-v .flap { animation: ca-flap 3.2s ease-in-out infinite; }
+    .k-aircon.running.swing-h .air { animation: ca-sway 4s ease-in-out infinite; }
+    @keyframes ca-flap { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(2.3); } }
+    @keyframes ca-sway { 0%, 100% { transform: skewX(0); } 25% { transform: skewX(14deg); } 75% { transform: skewX(-14deg); } }
+  `,
+};
+
 class ClimateAirAirconCard extends CaCard {
   static get kind() {
     return "aircon";
@@ -176,17 +226,8 @@ class ClimateAirAirconCard extends CaCard {
       target,
       chips,
       display: on && target != null && mode !== "fan_only" ? `${caFmtNum(lang, target)}°` : on ? "--" : "",
-      artClasses: [
-        `m-${mode}`,
-        active ? "active" : "",
-        on && /vert|both|3d|all|^on$|^swing$/.test(swing) ? "swing-v" : "",
-        on && /hor|both|3d|all/.test(swing) ? "swing-h" : "",
-      ],
+      swing,
     };
-  }
-
-  _art(m) {
-    return caAirconArt(this._variant(caAirconVariant), m.display);
   }
 
   _temp(v, digits = 1) {
@@ -282,43 +323,12 @@ class ClimateAirAirconCard extends CaCard {
   }
 
   static styles = `
-    .k-aircon .disp { font: 600 6.6px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; fill: var(--ca-color); }
-    .k-aircon .led { fill: #9aa5b1; }
-    .k-aircon .c-stop { stop-color: var(--ca-color); }
-    .k-aircon .floor { opacity: 0; transition: opacity .6s; }
-    .k-aircon .air { fill: none; stroke: var(--ca-color); stroke-width: 1.8; stroke-linecap: round; }
-    .k-aircon .flakes { fill: none; stroke: var(--ca-color); stroke-width: 1; stroke-linecap: round; }
-    .k-aircon .drops { fill: var(--ca-color); }
-    .k-aircon .heat { fill: none; stroke: var(--ca-color); stroke-width: 1.3; stroke-linecap: round; }
-    .k-aircon .air path, .k-aircon .flakes path, .k-aircon .drops path, .k-aircon .heat path { opacity: 0; transform-box: view-box; }
-    .k-aircon .flakes, .k-aircon .drops, .k-aircon .heat { display: none; }
-    .k-aircon.m-cool .flakes, .k-aircon.m-dry .drops, .k-aircon.m-heat .heat { display: inline; }
-    .k-aircon .flap { transform-box: fill-box; transform-origin: 50% 0; }
-    .k-aircon .air { transform-box: fill-box; transform-origin: 50% 0; }
-    .k-aircon .ofan { transform-box: fill-box; transform-origin: center; }
-    .k-aircon.running .floor { opacity: 1; }
-    .k-aircon.running .led { fill: var(--ca-color); }
-    .k-aircon.running.active .led { animation: ca-blink 2s ease-in-out infinite; }
-    .k-aircon.running .air path { animation: ca-fall 2.4s ease-in infinite; }
-    .k-aircon.running .air path:nth-child(2) { animation-delay: .8s; }
-    .k-aircon.running .air path:nth-child(3) { animation-delay: 1.6s; }
-    .k-aircon.running:not(.active) .air path { animation-duration: 4.2s; }
-    .k-aircon.running .flakes path, .k-aircon.running .drops path { animation: ca-fall 3s linear infinite; }
-    .k-aircon.running .heat path { animation: ca-fall 2.6s ease-in-out infinite; }
-    .k-aircon.running .flakes path:nth-child(2), .k-aircon.running .drops path:nth-child(2), .k-aircon.running .heat path:nth-child(2) { animation-delay: 1s; }
-    .k-aircon.running .flakes path:nth-child(3), .k-aircon.running .drops path:nth-child(3), .k-aircon.running .heat path:nth-child(3) { animation-delay: 2s; }
-    .k-aircon.running .up path { animation-name: ca-rise; }
-    .k-aircon.running.active .ofan { animation: ca-spin .8s linear infinite; }
-    .k-aircon.running.swing-v .flap { animation: ca-flap 3.2s ease-in-out infinite; }
-    .k-aircon.running.swing-h .air { animation: ca-sway 4s ease-in-out infinite; }
     .stepper { display: flex; align-items: center; justify-content: center; gap: 18px; }
     .tv { display: flex; flex-direction: column; align-items: center; min-width: 96px; }
     .tval { font-size: 26px; line-height: 1.1; color: var(--primary-text-color); font-variant-numeric: tabular-nums; }
     .tl { font-size: 11px; color: var(--secondary-text-color); text-transform: uppercase; letter-spacing: .04em; }
     .stepper .round { width: 44px; height: 44px; background: color-mix(in srgb, var(--ca-color) 14%, transparent); color: var(--ca-color); }
     ha-card.mini .round[data-action=temp] { width: 36px; height: 36px; }
-    @keyframes ca-flap { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(2.3); } }
-    @keyframes ca-sway { 0%, 100% { transform: skewX(0); } 25% { transform: skewX(14deg); } 75% { transform: skewX(-14deg); } }
   `;
 }
 

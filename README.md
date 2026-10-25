@@ -33,13 +33,13 @@ All the cards share the same look (header with a status pill and a power button,
 `custom:climate-air-overview-card` — Every air conditioner, air purifier and fan at a glance.
 
 - Automatic discovery: every `climate` entity that can cool, dry or only blow (a heat-only thermostat is left out), and every `fan` entity, sorted into air purifiers (from their name, or a PM2.5, air quality or filter sensor on the device) and fans
-- One compact tile per device, coloured by its state: the mode colour of an air conditioner, the air quality of a purifier, blue for a fan; its icon moves while the device runs (turning blades, falling snowflake, flickering flame, pulsing purifier)
+- One compact tile per device with its illustration, animated while it runs like on the device cards (turning blades and rotor, air flowing out, swinging head or flap), coloured by its state: the mode colour of an air conditioner, the air quality of a purifier, blue for a fan
 - The state on each tile: *Cool · 22 °C*, *PM2.5 6 · Good air*, *45 % · Natural wind*, or *Off* (with the room temperature for an air conditioner); a chip flags a filter to replace or to clean
 - Grouped by kind of device, by area, or not at all (`group_by`)
 - **Tap** the icon of a tile to turn the device on or off; **tap** the tile to unfold its full card at the top of the overview, tap it again or anywhere else to fold it back
 - Only the devices that are on or need attention show; the **detail** button (top right) shows every device, and back, as does a click anywhere else (`zoom: false`: every device, always, no button)
 - Header with how many devices are on and how many filters need care
-- Icons of your choice, in the visual editor too: one for the header (`icon`), one for every device of a kind, one per device (`icons`)
+- The illustration of every device of a kind or of each device (`illustrations`, guessed from the device model otherwise), or an icon instead (`icons`); the header icon (`icon`). All in the visual editor too
 
 ### Air purifier
 
@@ -151,9 +151,11 @@ exclude:
   - fan.garage_fan
 include:
   - climate.bathroom_thermostat
+illustrations:
+  aircon: window
+  fan.bedroom_air: box
 icons:
-  fan: mdi:fan-speed-1
-  fan.bedroom_fan: mdi:ceiling-fan
+  fan.garage_fan: mdi:ceiling-fan
 devices:
   - entity: fan.bedroom_air
     name: Bedroom
@@ -164,13 +166,14 @@ devices:
 |---|---|---|---|
 | `title` | ❌ | Climate & air | Card title |
 | `icon` | ❌ | `mdi:air-filter` | Header icon |
-| `icons` | ❌ | — | Tile icons: by kind of device (`aircon`, `purifier`, `fan`) and by entity ID, the device's own winning. A running air conditioner shows its mode icon unless one is set here. The visual editor lists every kind and every device in its **Icons** section |
+| `illustrations` | ❌ | Auto | Tile illustrations, by kind of device (`aircon`, `purifier`) and by entity ID, the device's own winning: purifier `tower`, `cylinder` or `box`; air conditioner `split`, `portable` or `window`. Unset or `auto`: guessed from the device model and name. The unfolded card uses the same one. In the visual editor's **Illustrations** section |
+| `icons` | ❌ | — | An icon instead of the illustration, by kind of device (`aircon`, `purifier`, `fan`) or by entity ID; it moves with the device state (turning fan, mode icon of an air conditioner). In the visual editor's **Icons** section |
 | `group_by` | ❌ | `type` | `type` (air conditioners, air purifiers, fans), `area` or `none` |
 | `columns` | ❌ | `2` | Number of tile columns (1 on narrow cards unless set) |
 | `zoom` | ❌ | `true` | Only the devices on or needing attention show, and a detail button shows them all; `false`: every device, always |
 | `exclude` | ❌ | — | Devices left out |
 | `include` | ❌ | — | `climate` or `fan` entities the card would not pick on its own (a heat-only thermostat shows as an air conditioner) |
-| `devices` | ❌ | — | Per-device overrides: `{entity, name, icon, type}`, with `type` one of `aircon`, `purifier`, `fan` (an `icon` here wins over `icons`) |
+| `devices` | ❌ | — | Per-device overrides: `{entity, name, icon, illustration, type}`, with `type` one of `aircon`, `purifier`, `fan` (they win over `icons` and `illustrations`) |
 
 ### Air purifier
 

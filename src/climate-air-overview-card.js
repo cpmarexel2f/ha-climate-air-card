@@ -81,7 +81,7 @@ class ClimateAirOverviewCard extends CaElement {
     for (const [id, o] of Object.entries(over)) if (CA_KINDS.includes(o.type) && h.states[id]) kinds.set(id, o.type);
     return [...kinds]
       .filter(([id]) => !exclude.has(id))
-      .map(([id, kind]) => this._item(id, kind, over[id] || {}, c.icons || {}))
+      .map(([id, kind]) => this._item(id, kind, over[id] || {}, c.icons || {}, c.illustrations || {}))
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 
@@ -89,8 +89,9 @@ class ClimateAirOverviewCard extends CaElement {
     return caFindRole(this._hass, caDeviceEntities(this._hass, caDeviceOf(this._hass, id)), role);
   }
 
-  // `icons`: an icon per device (by entity ID) or per kind of device (aircon, purifier, fan), from the config.
-  _item(id, kind, o, icons) {
+  // Each tile shows the device's illustration, animated while it runs, in the variant set in `illustrations` (by entity
+  // ID or by kind of device) or guessed from the device. An icon set in `icons` (same keys) replaces the illustration.
+  _item(id, kind, o, icons, illustrations) {
     const h = this._hass;
     const lang = this._lang();
     const st = h.states[id];
@@ -101,6 +102,9 @@ class ClimateAirOverviewCard extends CaElement {
       name: o.name || caName(h, id),
       area: caAreaName(h, id),
       icon: o.icon || icons[id] || icons[kind] || CA_KIND_ICONS[kind],
+      iconSet: !!(o.icon || icons[id] || icons[kind]),
+      variant: caVariant(h, kind, id, o.illustration || illustrations[id] || illustrations[kind]),
+      art: { running: false, state: "off" },
       on: false,
       alert: "",
       anim: "",
@@ -131,6 +135,16 @@ class ClimateAirOverviewCard extends CaElement {
         item.icon = o.icon || icons[id] || icons[kind] || CA_MODE_ICONS[mode] || item.icon;
         item.anim = CA_AC_ICON_ANIM[mode] || "breathe";
         if (item.anim === "spin") item.spin = caSpin(50);
+        const freq = caNum(h.states[this._role(id, "compressor")]);
+        const action = a.hvac_action;
+        item.art = {
+          running: true,
+          state: mode,
+          mode,
+          swing: a.swing_mode,
+          active: freq != null ? freq > 0 : action ? !["idle", "off"].includes(action) : true,
+          display: a.temperature != null && mode !== "fan_only" ? `${caFmtNum(lang, Number(a.temperature))}°` : "--",
+        };
       } else {
         item.text = [this._t("st_off"), cur != null ? temp(cur) : ""].filter(Boolean).join(" · ");
       }
@@ -147,6 +161,7 @@ class ClimateAirOverviewCard extends CaElement {
         item.text = item.on ? [quality || this._t("st_purifying"), aq ? this._t(`aq_${aq.key}`) : ""].filter(Boolean).join(" · ") : [this._t("st_off"), quality].filter(Boolean).join(" · ");
         item.color = item.on ? aq?.color || CA_FAN_COLOR : CA_IDLE;
         item.anim = item.on ? "pulse" : "";
+        item.art = { running: item.on, pct, aqColor: aq?.color || CA_FAN_COLOR };
         const filter = caNum(h.states[this._role(id, "filter")]);
         if (this._config.show_alerts !== false && filter != null && filter <= 10) item.alert = this._t("filter_low");
       } else {
@@ -154,6 +169,7 @@ class ClimateAirOverviewCard extends CaElement {
         item.color = item.on ? CA_FAN_COLOR : CA_IDLE;
         item.anim = item.on ? "spin" : "";
         item.spin = caSpin(pct);
+        item.art = { running: item.on, pct, osc: !!a.oscillating, natural: /natur/i.test(a.preset_mode || "") };
       }
     }
     return item;
@@ -172,7 +188,8 @@ class ClimateAirOverviewCard extends CaElement {
     this._sig = sig;
 
     if (!this.shadowRoot.querySelector("ha-card")) {
-      this.shadowRoot.innerHTML = `<style>${CA_OVERVIEW_STYLES}</style><ha-card><div class="head"></div><div class="panel" hidden></div><div class="body"></div></ha-card>`;
+      const art = CA_KINDS.map((k) => CA_ART[k]?.styles || "").join("");
+      this.shadowRoot.innerHTML = `<style>${CA_ART_STYLES}${art}${CA_OVERVIEW_STYLES}</style><ha-card><div class="head"></div><div class="panel" hidden></div><div class="body"></div></ha-card>`;
     }
     const card = this.shadowRoot.querySelector("ha-card");
     const on = all.filter((x) => x.on);
@@ -192,7 +209,7 @@ class ClimateAirOverviewCard extends CaElement {
     body.classList.toggle("fixed", !!c.columns);
     if (!all.length) body.innerHTML = `<div class="empty">${caEsc(this._t("no_devices"))}</div>`;
     else if (!shown.length) body.innerHTML = `<div class="empty">${caEsc(this._t("nothing_on"))}</div>`;
-    else body.innerHTML = this._groups(shown).map(([title, items]) => `${title ? `<div class="group">${caEsc(title)}</div>` : ""}<div class="grid">${items.map((x) => this._tile(x)).join("")}</div>`).join("");
+    else body.innerHTML = this._groups(shown).map(([title, items]) => `${title ? `<div class="group">${caEsc(title)}</div>` : ""}<div class="grid">${items.map((x) => this._tile(x, `${x.kind}-${all.indexOf(x)}`)).join("")}</div>`).join("");
 
     this._fillPanel(all.find((x) => x.id === this._open));
   }
@@ -207,12 +224,13 @@ class ClimateAirOverviewCard extends CaElement {
     return [["", items]];
   }
 
-  _tile(x) {
+  _tile(x, i) {
     const cls = ["dev", x.on ? "on" : "", x.na ? "na" : "", x.alert ? "alert" : "", x.id === this._open ? "sel" : ""].filter(Boolean).join(" ");
-    const style = `--t:${x.color};${x.spin ? `--ca-spin:${x.spin}s;` : ""}`;
+    const style = `--t:${x.color};--ca-color:${x.color};${x.spin ? `--ca-spin:${x.spin}s;` : ""}`;
+    const look = x.iconSet ? `<ha-icon icon="${caEsc(x.icon)}"></ha-icon>` : caPicture(x.kind, x.variant, x.art, String(i));
     return (
       `<div class="${cls}" role="button" tabindex="0" data-id="${caEsc(x.id)}" style="${style}" title="${caEsc(`${x.name} — ${x.text}`)}">` +
-      `<button class="ic ${x.anim}" data-toggle="${caEsc(x.id)}" title="${caEsc(this._t("toggle"))}" aria-label="${caEsc(`${this._t("toggle")} ${x.name}`)}"${x.na ? " disabled" : ""}><ha-icon icon="${caEsc(x.icon)}"></ha-icon></button>` +
+      `<button class="ic ${x.iconSet ? x.anim : "pic"}" data-toggle="${caEsc(x.id)}" title="${caEsc(this._t("toggle"))}" aria-label="${caEsc(`${this._t("toggle")} ${x.name}`)}"${x.na ? " disabled" : ""}>${look}</button>` +
       `<span class="name">${caEsc(x.name)}</span>` +
       `<span class="state">${caEsc(x.text)}</span>` +
       (x.alert ? `<span class="chips"><span class="chip warn"><ha-icon icon="mdi:air-filter"></ha-icon><span>${caEsc(x.alert)}</span></span></span>` : "") +
@@ -268,7 +286,12 @@ class ClimateAirOverviewCard extends CaElement {
     if (!customElements.get(tag)) return;
     const el = document.createElement(tag);
     el._caId = item.id;
-    el.setConfig({ type: `custom:${tag}`, entity: item.id, ...(this._config.language ? { language: this._config.language } : {}) });
+    el.setConfig({
+      type: `custom:${tag}`,
+      entity: item.id,
+      ...(item.variant ? { illustration: item.variant } : {}),
+      ...(this._config.language ? { language: this._config.language } : {}),
+    });
     el.hass = this._hass;
     panel.appendChild(el);
     this._detail = el;
@@ -326,6 +349,13 @@ const CA_OVERVIEW_STYLES = `
   .ic:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 1px; }
   .ic:disabled { cursor: default; }
   .ic ha-icon { --mdc-icon-size: 16px; display: flex; }
+  .dev:has(.ic.pic) { grid-template-columns: 40px minmax(0, 1fr); row-gap: 1px; padding: 5px 7px 5px 5px; }
+  .ic.pic { width: 40px; height: 46px; border-radius: 8px; background: none; grid-row: span 2; overflow: visible; }
+  .dev.on .ic.pic, .ic.pic:hover { background: none; box-shadow: none; }
+  .ic.pic:hover .picture { transform: scale(1.06); }
+  .ic.pic .picture { width: 40px; height: 46px; transition: transform .2s; }
+  .ic.pic .picture svg { filter: drop-shadow(0 1.5px 3px rgba(0,0,0,.2)); }
+  .dev:not(.on) .ic.pic .picture { opacity: .8; }
   .ic.spin ha-icon { animation: ca-spin var(--ca-spin, 1s) linear infinite; }
   .ic.twirl ha-icon { animation: ca-spin 6s linear infinite; }
   .ic.flicker ha-icon { animation: ca-flicker 1.4s ease-in-out infinite; transform-origin: 50% 90%; }
@@ -356,7 +386,7 @@ class ClimateAirOverviewCardEditor extends CaCardEditor {
   }
 
   _helpers() {
-    return ["title", "icon", "columns", "exclude", "include", "icons", "language", "devices"];
+    return ["title", "icon", "columns", "exclude", "include", "illustrations", "icons", "language", "devices"];
   }
 
   _schema() {
@@ -392,7 +422,23 @@ class ClimateAirOverviewCardEditor extends CaCardEditor {
       { name: "zoom", selector: { boolean: {} } },
       { name: "exclude", selector: { entity: { multiple: true, include_entities: found } } },
       { name: "include", selector: { entity: { multiple: true, domain: ["climate", "fan"] } } },
-      // One icon per kind of device, then one per device; empty keeps the default.
+      // The illustration of each kind of device that has several, then of each such device; empty: automatic.
+      {
+        name: "illustrations",
+        type: "expandable",
+        flatten: false,
+        title: caT(lang, "ed_illustrations"),
+        schema: [...CA_KINDS, ...shown, ...(this._config?.include || [])]
+          .map((name) => [name, CA_KINDS.includes(name) ? name : caKindOf(this._hass, name) || (name.startsWith("climate.") ? "aircon" : "fan")])
+          .filter(([, kind]) => CA_ART[kind]?.variants)
+          .map(([name, kind]) => ({
+            name,
+            selector: {
+              select: { mode: "dropdown", options: ["auto", ...CA_ART[kind].variants].map((v) => ({ value: v, label: caT(lang, `ill_${v}`) })) },
+            },
+          })),
+      },
+      // One icon per kind of device, then one per device: it replaces the illustration; empty keeps it.
       {
         name: "icons",
         type: "expandable",

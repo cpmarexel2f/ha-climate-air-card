@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.0
+
+### Changes
+- Overview: each tile shows its device's illustration instead of an icon, animated while it runs like on the device cards, in the device's own colours. Choose it by kind of device or per device with `illustrations` (or `illustration` in `devices`), guessed from the device model otherwise; the unfolded card uses the same one. The editor gets an **Illustrations** section.
+- Overview: an icon set in `icons` now replaces the illustration of its tiles.
+
+### Maintenance
+- The illustrations of the three kinds of device live in one registry shared by the cards and the overview.
+
 ## 1.1.0
 
 ### Changes

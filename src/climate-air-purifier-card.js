@@ -74,6 +74,40 @@ const caPurifierVariant = (text) => {
   return "tower";
 };
 
+CA_ART.purifier = {
+  variants: ["tower", "cylinder", "box"],
+  guess: caPurifierVariant,
+  render: (variant, s) => ({ svg: caPurifierArt(variant), style: `--ca-spin:${caSpin(s.pct)}s;--ca-aq:${s.aqColor || CA_FAN_COLOR}` }),
+  styles: `
+    .k-purifier .rotor { fill: #8b96a3; transform-box: fill-box; transform-origin: center; }
+    .k-purifier .ring { fill: none; stroke: #6b7682; stroke-width: 1.8; }
+    .k-purifier.running .ring { stroke: var(--ca-aq); filter: drop-shadow(0 0 2px var(--ca-aq)); }
+    .k-purifier .aq-stop { stop-color: var(--ca-aq); }
+    .k-purifier .floor { opacity: 0; transition: opacity .6s; }
+    .k-purifier .flow { fill: none; stroke: var(--ca-aq); stroke-width: 1.7; stroke-linecap: round; }
+    .k-purifier .clean { fill: #8fd3ff; }
+    .k-purifier .dust { fill: #a1887f; }
+    .k-purifier .flow path, .k-purifier .clean circle, .k-purifier .dust circle { opacity: 0; transform-box: view-box; }
+    .k-purifier.running .floor { opacity: 1; animation: ca-glow 2.4s ease-in-out infinite alternate; }
+    .k-purifier.running .rotor { animation: ca-spin var(--ca-spin, 1s) linear infinite; }
+    .k-purifier.running .flow path { animation: ca-rise 2.1s ease-out infinite; }
+    .k-purifier.running .flow path:nth-child(2) { animation-delay: .7s; }
+    .k-purifier.running .flow path:nth-child(3) { animation-delay: 1.4s; }
+    .k-purifier.running .clean circle { animation: ca-rise 2.6s ease-out infinite; }
+    .k-purifier.running .clean circle:nth-child(2) { animation-delay: .65s; }
+    .k-purifier.running .clean circle:nth-child(3) { animation-delay: 1.3s; }
+    .k-purifier.running .clean circle:nth-child(4) { animation-delay: 1.95s; }
+    .k-purifier.running .dust-l circle { animation: ca-suck-l 2.4s ease-in infinite; }
+    .k-purifier.running .dust-r circle { animation: ca-suck-r 2.4s ease-in infinite; }
+    .k-purifier.running .dust circle:nth-child(2) { animation-delay: .8s; }
+    .k-purifier.running .dust circle:nth-child(3) { animation-delay: 1.6s; }
+    .k-purifier.running .ring { animation: ca-blink 3s ease-in-out infinite; }
+    @keyframes ca-glow { from { opacity: .45; } to { opacity: 1; } }
+    @keyframes ca-suck-l { 0% { opacity: 0; transform: translateX(-6px); } 30% { opacity: .85; } 100% { opacity: 0; transform: translateX(13px); } }
+    @keyframes ca-suck-r { 0% { opacity: 0; transform: translateX(6px); } 30% { opacity: .85; } 100% { opacity: 0; transform: translateX(-13px); } }
+  `,
+};
+
 class ClimateAirPurifierCard extends CaCard {
   static get kind() {
     return "purifier";
@@ -113,12 +147,8 @@ class ClimateAirPurifierCard extends CaCard {
       filter,
       preset,
       chips,
-      artStyle: `--ca-spin:${caSpin(pct)}s;--ca-aq:${aqColor}`,
+      aqColor,
     };
-  }
-
-  _art() {
-    return caPurifierArt(this._variant(caPurifierVariant));
   }
 
   _aqText(m) {
@@ -201,35 +231,9 @@ class ClimateAirPurifierCard extends CaCard {
   }
 
   static styles = `
-    .k-purifier .rotor { fill: #8b96a3; transform-box: fill-box; transform-origin: center; }
-    .k-purifier .ring { fill: none; stroke: #6b7682; stroke-width: 1.8; }
-    .k-purifier.running .ring { stroke: var(--ca-aq); filter: drop-shadow(0 0 2px var(--ca-aq)); }
-    .k-purifier .aq-stop { stop-color: var(--ca-aq); }
-    .k-purifier .floor { opacity: 0; transition: opacity .6s; }
-    .k-purifier .flow { fill: none; stroke: var(--ca-aq); stroke-width: 1.7; stroke-linecap: round; }
-    .k-purifier .clean { fill: #8fd3ff; }
-    .k-purifier .dust { fill: #a1887f; }
-    .k-purifier .flow path, .k-purifier .clean circle, .k-purifier .dust circle { opacity: 0; transform-box: view-box; }
-    .k-purifier.running .floor { opacity: 1; animation: ca-glow 2.4s ease-in-out infinite alternate; }
-    .k-purifier.running .rotor { animation: ca-spin var(--ca-spin, 1s) linear infinite; }
-    .k-purifier.running .flow path { animation: ca-rise 2.1s ease-out infinite; }
-    .k-purifier.running .flow path:nth-child(2) { animation-delay: .7s; }
-    .k-purifier.running .flow path:nth-child(3) { animation-delay: 1.4s; }
-    .k-purifier.running .clean circle { animation: ca-rise 2.6s ease-out infinite; }
-    .k-purifier.running .clean circle:nth-child(2) { animation-delay: .65s; }
-    .k-purifier.running .clean circle:nth-child(3) { animation-delay: 1.3s; }
-    .k-purifier.running .clean circle:nth-child(4) { animation-delay: 1.95s; }
-    .k-purifier.running .dust-l circle { animation: ca-suck-l 2.4s ease-in infinite; }
-    .k-purifier.running .dust-r circle { animation: ca-suck-r 2.4s ease-in infinite; }
-    .k-purifier.running .dust circle:nth-child(2) { animation-delay: .8s; }
-    .k-purifier.running .dust circle:nth-child(3) { animation-delay: 1.6s; }
-    .k-purifier.running .ring { animation: ca-blink 3s ease-in-out infinite; }
     .lbl.aq { color: var(--ca-color); }
     .filter.low .fill { background: var(--warning-color, #ffa600); }
     .filter .fill { background: color-mix(in srgb, var(--ca-color) 70%, var(--secondary-text-color)); }
-    @keyframes ca-glow { from { opacity: .45; } to { opacity: 1; } }
-    @keyframes ca-suck-l { 0% { opacity: 0; transform: translateX(-6px); } 30% { opacity: .85; } 100% { opacity: 0; transform: translateX(13px); } }
-    @keyframes ca-suck-r { 0% { opacity: 0; transform: translateX(6px); } 30% { opacity: .85; } 100% { opacity: 0; transform: translateX(-13px); } }
   `;
 }
 
