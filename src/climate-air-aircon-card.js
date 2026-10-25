@@ -99,21 +99,25 @@ const caAirconVariant = (text) => {
   return "split";
 };
 
-// Icons for the device switches listed as options.
-const caSwitchIcon = (id) =>
-  [
-    [/eco/, "mdi:leaf"],
-    [/display|screen|ecran/, "mdi:monitor"],
-    [/tone|sound|buzzer|beep|prompt/, "mdi:volume-high"],
-    [/self_clean|clean/, "mdi:broom"],
-    [/aux|heating|chauff/, "mdi:radiator"],
-    [/silent|quiet|silence/, "mdi:volume-off"],
-    [/eye|presence/, "mdi:eye-outline"],
-    [/anion|ioni/, "mdi:creation-outline"],
-    [/turbo|boost/, "mdi:rocket-launch-outline"],
-    [/sleep/, "mdi:power-sleep"],
-    [/light|led/, "mdi:lightbulb-outline"],
-  ].find(([re]) => re.test(id))?.[1] || "mdi:toggle-switch-outline";
+// The device switches listed as options: icon and label (`sw_<key>`) from the entity ID, since integrations often
+// name them in English only (Midea: "Prompt tone", "Smart eye"…). The first match wins; others keep their own name.
+const CA_SWITCHES = [
+  [/outdoor_?silent|silence_?ext/, "mdi:volume-off", "outdoor_silent"],
+  [/aux|auxiliary|electric_?heat|appoint/, "mdi:radiator", "aux_heat"],
+  [/frost|freeze|8_?deg|antigel|hors_?gel/, "mdi:snowflake-thermometer", "frost"],
+  [/eco/, "mdi:leaf", "eco"],
+  [/display|screen|ecran/, "mdi:monitor", "display"],
+  [/tone|sound|buzzer|beep|prompt|bip/, "mdi:volume-high", "sound"],
+  [/self_?clean|autonettoyage|clean/, "mdi:broom", "self_clean"],
+  [/silent|quiet|silence/, "mdi:volume-off", "silent"],
+  [/smart_?eye|eye|presence/, "mdi:eye-outline", "smart_eye"],
+  [/anion|ioni/, "mdi:creation-outline", "anion"],
+  [/turbo|boost/, "mdi:rocket-launch-outline", "turbo"],
+  [/breeze/, "mdi:weather-windy", "breeze"],
+  [/sleep/, "mdi:power-sleep", "sleep"],
+  [/light|led/, "mdi:lightbulb-outline", "light"],
+];
+const caSwitchInfo = (id) => CA_SWITCHES.find(([re]) => re.test(id.split(".")[1] || id));
 
 const CA_TEMP_DEBOUNCE = 900;
 
@@ -267,7 +271,12 @@ class ClimateAirAirconCard extends CaCard {
           f & CA_CLIMATE_PRESET ? this._selectAttr("preset_mode", "preset_modes", "set_preset_mode", this._t("preset_mode")) : "",
         ].filter(Boolean)
       : [];
-    const toggles = this._toggles(this._switches(r).map((id) => this._toggle(id, this._label(id), caSwitchIcon(id))));
+    const toggles = this._toggles(
+      this._switches(r).map((id) => {
+        const info = caSwitchInfo(id);
+        return this._toggle(id, info ? this._t(`sw_${info[2]}`) : this._label(id), info?.[1] || "mdi:toggle-switch-outline");
+      }),
+    );
     return this._section("", segs + stepper + (selects.length ? `<div class="grid">${selects.join("")}</div>` : "")) + this._section(this._t("options"), toggles);
   }
 

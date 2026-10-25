@@ -270,3 +270,24 @@ test("level values keep their number", () => {
   assert.match(out, /<span>Niveau 4<\/span>/);
   assert.match(out, /<span>Niveau 2<\/span>/);
 });
+
+test("air conditioner options get the card's labels, the integration naming them in English only", () => {
+  const h = makeHass("fr");
+  for (const [id, name] of [
+    ["switch.air_conditioner_auxiliary_heating", "Auxiliary heating"],
+    ["switch.air_conditioner_outdoor_silent_mode", "Outdoor silent mode"],
+    ["switch.air_conditioner_smart_eye", "Smart eye"],
+    ["switch.air_conditioner_anion", "Anion"],
+    ["switch.air_conditioner_odd_thing", "Odd thing"],
+  ]) {
+    h.states[id] = { entity_id: id, state: "off", attributes: { friendly_name: `Climatiseur ${name}` } };
+    h.entities[id] = { entity_id: id, device_id: "dev_ac" };
+  }
+  const out = html(mount(lib, "climate-air-aircon-card", { entity: "climate.air_conditioner" }, h));
+  for (const label of ["Bip sonore", "Écran", "Autonettoyage", "Éco", "Chauffage d'appoint", "Unité extérieure silencieuse", "Œil intelligent", "Ions négatifs"]) {
+    assert.match(out, new RegExp(`</ha-icon>${label.replace("'", "&#39;")}</button>`), label);
+  }
+  // Unknown: its own name, without the device name.
+  assert.match(out, /<\/ha-icon>Odd thing<\/button>/);
+  assert.doesNotMatch(out, />(Prompt tone|Screen display|Self clean|Smart eye)</);
+});

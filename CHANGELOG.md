@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.1
+
+### Fixes
+- Air conditioner: the options are labelled in the card's language, the integration often naming them in English only (Midea: *Prompt tone*, *Screen display*, *Self clean*, *Auxiliary heating*, *Outdoor silent mode*, *Smart eye*, *Anion*…), with a matching icon. An option the card does not know keeps its own name.
+
 ## 1.3.0
 
 ### Changes
