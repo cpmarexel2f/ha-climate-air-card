@@ -65,19 +65,19 @@ const DEVICES = [
   ]],
 ];
 
+// What Home Assistant itself translates: the climate modes, and the climate fan, swing and preset values it knows.
+// Integration-specific values (Xiaomi Home presets, Midea's silent / full fan modes, HomeKit modes) are left raw,
+// as Home Assistant does: the cards translate them.
 const LABELS = {
   en: {
     off: "Off", cool: "Cool", heat: "Heat", dry: "Dry", auto: "Auto", fan_only: "Fan only", heat_cool: "Heat/Cool",
-    silent: "Silent", low: "Low", medium: "Medium", high: "High", full: "Full", none: "None", comfort: "Comfort", eco: "Eco",
-    boost: "Boost", sleep: "Sleep", away: "Away", vertical: "Vertical", horizontal: "Horizontal", both: "Both",
-    purifying: "Purifying", automatic: "Automatic", manual: "Manual",
+    low: "Low", medium: "Medium", high: "High", none: "None", comfort: "Comfort", eco: "Eco", boost: "Boost", sleep: "Sleep",
+    away: "Away", vertical: "Vertical", horizontal: "Horizontal", both: "Both",
   },
   fr: {
     off: "Arrêt", cool: "Froid", heat: "Chaud", dry: "Déshumidification", auto: "Automatique", fan_only: "Ventilation",
-    heat_cool: "Chaud/Froid", silent: "Silencieux", low: "Faible", medium: "Moyen", high: "Élevé", full: "Maximum", none: "Aucun",
-    comfort: "Confort", eco: "Éco", boost: "Boost", sleep: "Nuit", away: "Absent", vertical: "Vertical", horizontal: "Horizontal",
-    both: "Les deux", purifying: "Purification", automatic: "Automatique", manual: "Manuel", Auto: "Auto", Sleep: "Nuit",
-    Favorite: "Favori", "Natural wind": "Vent naturel", "Straight wind": "Vent direct", Natural: "Naturel", Standard: "Standard",
+    heat_cool: "Chaud/Froid", low: "Faible", medium: "Moyen", high: "Élevé", none: "Aucun", comfort: "Confort", eco: "Éco",
+    boost: "Boost", sleep: "Nuit", away: "Absent", vertical: "Vertical", horizontal: "Horizontal", both: "Les deux",
   },
 };
 

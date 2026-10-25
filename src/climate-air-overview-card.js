@@ -116,10 +116,7 @@ class ClimateAirOverviewCard extends CaElement {
       item.text = this._t("st_unavailable");
       return item;
     }
-    const fmtAttr = (attr, v) => {
-      const out = h.formatEntityAttributeValue?.(st, attr, v);
-      return out && out !== v ? out : caHumanize(v);
-    };
+    const fmtAttr = (attr, v) => caValueLabel(lang, v, h.formatEntityAttributeValue?.(st, attr, v));
     if (kind === "aircon") {
       item.on = st.state !== "off";
       const mode = st.state;
@@ -127,7 +124,7 @@ class ClimateAirOverviewCard extends CaElement {
       const unit = h.config?.unit_system?.temperature || "°C";
       const temp = (v) => `${caFmtNum(lang, v)} ${unit}`;
       if (item.on) {
-        const label = h.formatEntityState?.(st) || caHumanize(mode);
+        const label = caValueLabel(lang, mode, h.formatEntityState?.(st));
         const target = a.temperature != null && mode !== "fan_only" ? temp(Number(a.temperature)) : "";
         item.text = [label, target].filter(Boolean).join(" · ");
         item.color = CA_MODE_COLORS[mode] || CA_FAN_COLOR;

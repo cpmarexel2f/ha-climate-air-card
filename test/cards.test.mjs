@@ -207,3 +207,36 @@ test("overview editor: an icons section with each kind of device, then each devi
   const out = lib.caCleanConfig({ icons: { fan: "", "fan.bedroom_fan_fan": "mdi:ceiling-fan" } }, {}, "custom:climate-air-overview-card");
   assert.deepEqual(JSON.parse(JSON.stringify(out)), { type: "custom:climate-air-overview-card", icons: { "fan.bedroom_fan_fan": "mdi:ceiling-fan" } });
 });
+
+test("values integrations leave untranslated are translated by the cards", () => {
+  const fr = (changes) => makeHass("fr", changes);
+  // Xiaomi Home fan presets, and a "Level4" select option.
+  const fan = html(mount(lib, "climate-air-fan-card", { entity: "fan.bedroom_fan_fan" }, fr()));
+  assert.match(fan, /<span>Vent naturel<\/span>/);
+  assert.match(fan, /<span>Vent direct<\/span>/);
+  assert.doesNotMatch(fan, />(Natural wind|Straight wind)</);
+  // Xiaomi Home purifier presets; HomeKit status and mode.
+  const p1 = html(mount(lib, "climate-air-purifier-card", { entity: "fan.living_room_purifier_air_purifier" }, fr()));
+  assert.match(p1, /<span>Nuit<\/span>/);
+  assert.match(p1, /<span>Favori<\/span>/);
+  const p2 = html(mount(lib, "climate-air-purifier-card", { entity: "fan.bedroom_purifier" }, fr()));
+  assert.match(p2, /<span>Automatique<\/span>/);
+  assert.match(p2, /<span>Manuel<\/span>/);
+  assert.match(p2, /Purification/);
+  // Midea fan modes Home Assistant does not know.
+  const ac = html(mount(lib, "climate-air-aircon-card", { entity: "climate.air_conditioner" }, fr({ "climate.air_conditioner": { fan_mode: "silent" } })));
+  assert.match(ac, /<option value="silent" selected>Silencieux<\/option>/);
+  assert.match(ac, /<option value="full">Maximum<\/option>/);
+  // Home Assistant's own translation still wins.
+  assert.match(ac, /<option value="low">Faible<\/option>/);
+  // The overview too.
+  const ov = mount(lib, "climate-air-overview-card", {}, fr());
+  assert.match(ov.shadowRoot.querySelector("ha-card").querySelector(".body").innerHTML, /45 % · Vent naturel/);
+});
+
+test("level values keep their number", () => {
+  const h = makeHass("fr", { "fan.bedroom_fan_fan": { preset_modes: ["Level4", "level_2"], preset_mode: "Level4" } });
+  const out = html(mount(lib, "climate-air-fan-card", { entity: "fan.bedroom_fan_fan" }, h));
+  assert.match(out, /<span>Niveau 4<\/span>/);
+  assert.match(out, /<span>Niveau 2<\/span>/);
+});

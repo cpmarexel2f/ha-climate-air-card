@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.1
+
+### Fixes
+- Preset, fan mode, swing, mode and status values that the integration leaves untranslated are now shown in the card's language: Xiaomi Home presets (*Natural Wind*, *Straight Wind*, *Smart*, *Sleep*, *Favorite*…), Midea fan modes (*silent*, *full*), HomeKit purifier modes and status, and *Level 4* style values (*Niveau 4*). Home Assistant's own translation still comes first.
+
 ## 1.2.0
 
 ### Changes

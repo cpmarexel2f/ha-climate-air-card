@@ -237,6 +237,47 @@ const caUnavailable = (st) => !st || st.state === "unavailable" || st.state === 
 const caNum = (st) => (caUnavailable(st) ? null : Number.isFinite(Number(st.state)) ? Number(st.state) : null);
 
 // "laundry_mode_natural" → "Laundry mode natural": the fallback when Home Assistant has no translation.
+// Labels of the values integrations often leave untranslated (Xiaomi Home presets, Midea fan modes, HomeKit modes…),
+// by normalized value: used when Home Assistant has no translation of its own.
+const CA_VALUES = {
+  en: {
+    auto: "Auto", automatic: "Automatic", manual: "Manual", smart: "Smart", sleep: "Sleep", night: "Night", favorite: "Favorite",
+    favourite: "Favorite", silent: "Silent", quiet: "Quiet", turbo: "Turbo", boost: "Boost", strong: "Strong", max: "Max",
+    natural: "Natural", natural_wind: "Natural wind", nature: "Natural", straight: "Straight", straight_wind: "Straight wind",
+    direct: "Direct", direct_wind: "Direct wind", standard: "Standard", normal: "Normal", baby: "Baby", low: "Low", middle: "Medium",
+    medium: "Medium", mid: "Medium", high: "High", full: "Full", fixed: "Fixed", off: "Off", on: "On", vertical: "Vertical",
+    horizontal: "Horizontal", both: "Both", none: "None", comfort: "Comfort", eco: "Eco", away: "Away", home: "Home",
+    activity: "Activity", purifying: "Purifying", idle: "Idle", inactive: "Inactive", purify: "Purify",
+  },
+  fr: {
+    auto: "Auto", automatic: "Automatique", manual: "Manuel", smart: "Intelligent", sleep: "Nuit", night: "Nuit", favorite: "Favori",
+    favourite: "Favori", silent: "Silencieux", quiet: "Silencieux", turbo: "Turbo", boost: "Boost", strong: "Fort", max: "Max",
+    natural: "Naturel", natural_wind: "Vent naturel", nature: "Naturel", straight: "Direct", straight_wind: "Vent direct",
+    direct: "Direct", direct_wind: "Vent direct", standard: "Standard", normal: "Normal", baby: "Bébé", low: "Faible", middle: "Moyen",
+    medium: "Moyen", mid: "Moyen", high: "Élevé", full: "Maximum", fixed: "Fixe", off: "Arrêt", on: "Marche", vertical: "Vertical",
+    horizontal: "Horizontal", both: "Les deux", none: "Aucun", comfort: "Confort", eco: "Éco", away: "Absent", home: "Présent",
+    activity: "Activité", purifying: "Purification", idle: "En veille", inactive: "Inactif", purify: "Purification",
+  },
+};
+
+const caNormValue = (v) =>
+  String(v ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, "_");
+
+// A value as shown: Home Assistant's translation (`translated`) when it has one, else the card's own, else humanized.
+// "Level 2" / "Niveau 2" style values keep their number.
+function caValueLabel(lang, v, translated) {
+  if (translated && caNormValue(translated) !== caNormValue(v)) return translated;
+  const key = caNormValue(v);
+  const own = (CA_VALUES[lang] || CA_VALUES.en)[key];
+  if (own) return own;
+  const level = /^(level|niveau|gear|speed)_?(\d+)$/.exec(key);
+  if (level) return `${lang === "fr" ? "Niveau" : "Level"} ${level[2]}`;
+  return caHumanize(v);
+}
+
 function caHumanize(v) {
   const s = String(v ?? "").replace(/_/g, " ").trim();
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -548,16 +589,14 @@ class CaCard extends CaElement {
   // State or attribute value as Home Assistant shows it, or humanized when it has no translation.
   _fmtState(id, value) {
     const st = this._st(id);
-    if (!st) return caHumanize(value);
+    if (!st) return caValueLabel(this._lang(), value);
     const v = value ?? st.state;
-    const out = this._hass.formatEntityState?.(st, v);
-    return out && out !== v ? out : caHumanize(v);
+    return caValueLabel(this._lang(), v, this._hass.formatEntityState?.(st, v));
   }
 
   _fmtAttr(id, attr, value) {
     const st = this._st(id);
-    const out = st && this._hass.formatEntityAttributeValue?.(st, attr, value);
-    return out && out !== value ? out : caHumanize(value);
+    return caValueLabel(this._lang(), value, st && this._hass.formatEntityAttributeValue?.(st, attr, value));
   }
 
   _fmtSensor(id) {
