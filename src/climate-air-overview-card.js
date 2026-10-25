@@ -382,20 +382,46 @@ const CA_OVERVIEW_STYLES = `
 `;
 
 // ── Editor ───────────────────────────────────────────────────────────────────
+// The editor shows `illustrations`, `icons` and `devices` as two sections: the device types (illustration and icon of
+// every device of a type) and the devices (name, type, illustration and icon of each one). A device's settings found
+// under `illustrations` / `icons` are moved into its `devices` entry.
+const CA_DEVICE_FIELDS = ["name", "type", "illustration", "icon"];
+
 class ClimateAirOverviewCardEditor extends CaCardEditor {
   _defaults() {
     return { zoom: true, group_by: "type" };
   }
 
   _helpers() {
-    return ["title", "icon", "columns", "exclude", "include", "illustrations", "icons", "language", "devices"];
+    return ["title", "columns", "exclude", "include", "kinds", "devs", "language"];
+  }
+
+  // Every device the card can show: found or added by hand, excluded ones left out.
+  _deviceIds() {
+    const c = this._config || {};
+    const ids = CA_KINDS.flatMap((k) => caFindEntities(this._hass, k));
+    for (const id of c.include || []) if (!ids.includes(id) && this._hass.states[id]) ids.push(id);
+    return ids.filter((id) => !(c.exclude || []).includes(id));
+  }
+
+  _kindOf(id, type) {
+    if (CA_KINDS.includes(type)) return type;
+    return caKindOf(this._hass, id) || (id.startsWith("climate.") ? "aircon" : "fan");
+  }
+
+  _illustrationField(lang, kind) {
+    const variants = CA_ART[kind]?.variants;
+    if (!variants) return [];
+    const options = ["auto", ...variants].map((v) => ({ value: v, label: caT(lang, `ill_${v}`) }));
+    return [{ name: "illustration", selector: { select: { mode: "dropdown", options } } }];
   }
 
   _schema() {
     const lang = caLang(this._config, this._hass);
     const found = CA_KINDS.flatMap((k) => caFindEntities(this._hass, k));
     for (const id of this._config?.exclude || []) if (!found.includes(id)) found.push(id);
-    const shown = found.filter((id) => !(this._config?.exclude || []).includes(id));
+    const over = Object.fromEntries((this._config?.devices || []).filter((d) => d?.entity).map((d) => [d.entity, d]));
+    const types = [{ value: "auto", label: caT(lang, "ill_auto") }, ...CA_KINDS.map((k) => ({ value: k, label: caT(lang, k) }))];
     return [
       {
         type: "grid",
@@ -424,32 +450,72 @@ class ClimateAirOverviewCardEditor extends CaCardEditor {
       { name: "zoom", selector: { boolean: {} } },
       { name: "exclude", selector: { entity: { multiple: true, include_entities: found } } },
       { name: "include", selector: { entity: { multiple: true, domain: ["climate", "fan"] } } },
-      // The illustration of each kind of device that has several, then of each such device; empty: automatic.
       {
-        name: "illustrations",
+        name: "kinds",
         type: "expandable",
         flatten: false,
-        title: caT(lang, "ed_illustrations"),
-        schema: [...CA_KINDS, ...shown, ...(this._config?.include || [])]
-          .map((name) => [name, CA_KINDS.includes(name) ? name : caKindOf(this._hass, name) || (name.startsWith("climate.") ? "aircon" : "fan")])
-          .filter(([, kind]) => CA_ART[kind]?.variants)
-          .map(([name, kind]) => ({
-            name,
-            selector: {
-              select: { mode: "dropdown", options: ["auto", ...CA_ART[kind].variants].map((v) => ({ value: v, label: caT(lang, `ill_${v}`) })) },
-            },
-          })),
+        title: caT(lang, "ed_kinds"),
+        schema: CA_KINDS.map((k) => ({
+          name: k,
+          type: "expandable",
+          flatten: false,
+          title: caT(lang, `g_${k}`),
+          schema: [...this._illustrationField(lang, k), { name: "icon", selector: { icon: {} } }],
+        })),
       },
-      // One icon per kind of device, then one per device: it replaces the illustration; empty keeps it.
       {
-        name: "icons",
+        name: "devs",
         type: "expandable",
         flatten: false,
-        title: caT(lang, "ed_icons"),
-        schema: [...CA_KINDS, ...shown, ...(this._config?.include || [])].map((name) => ({ name, selector: { icon: {} } })),
+        title: caT(lang, "ed_devs"),
+        schema: this._deviceIds().map((id) => ({
+          name: id,
+          type: "expandable",
+          flatten: false,
+          title: caName(this._hass, id),
+          schema: [
+            { name: "name", selector: { text: {} } },
+            { name: "type", selector: { select: { mode: "dropdown", options: types } } },
+            ...this._illustrationField(lang, this._kindOf(id, over[id]?.type)),
+            { name: "icon", selector: { icon: {} } },
+          ],
+        })),
       },
-      ...caAdvanced(lang, "language", "devices"),
+      ...caAdvanced(lang, "language"),
     ];
+  }
+
+  _data() {
+    const { illustrations = {}, icons = {}, devices = [], ...rest } = this._config;
+    const over = Object.fromEntries(devices.filter((d) => d?.entity).map((d) => [d.entity, d]));
+    const kinds = Object.fromEntries(CA_KINDS.map((k) => [k, { illustration: illustrations[k] || "auto", icon: icons[k] }]));
+    const devs = Object.fromEntries(
+      this._deviceIds().map((id) => {
+        const d = over[id] || {};
+        return [id, { name: d.name, type: d.type || "auto", illustration: d.illustration || illustrations[id] || "auto", icon: d.icon || icons[id] }];
+      }),
+    );
+    return { ...this._defaults(), ...rest, kinds, devs };
+  }
+
+  _fromForm(value) {
+    const { kinds = {}, devs = {}, ...rest } = value;
+    const set = (v) => v && v !== "auto";
+    const illustrations = {};
+    const icons = {};
+    for (const k of CA_KINDS) {
+      if (set(kinds[k]?.illustration)) illustrations[k] = kinds[k].illustration;
+      if (set(kinds[k]?.icon)) icons[k] = kinds[k].icon;
+    }
+    const devices = [];
+    for (const [entity, d] of Object.entries(devs)) {
+      const entry = { entity };
+      for (const key of CA_DEVICE_FIELDS) if (set(d?.[key])) entry[key] = d[key];
+      if (Object.keys(entry).length > 1) devices.push(entry);
+    }
+    // Settings of devices the form does not list (excluded, or gone for now) are kept.
+    for (const d of this._config.devices || []) if (d?.entity && !(d.entity in devs)) devices.push(d);
+    return { ...rest, illustrations, icons, devices };
   }
 
   _render() {
@@ -457,13 +523,6 @@ class ClimateAirOverviewCardEditor extends CaCardEditor {
     if (!this._form) return;
     const lang = caLang(this._config, this._hass);
     const helpers = this._helpers();
-    // In the icons section: a kind of device ("All fans") or a device, by its name.
-    this._form.computeLabel = (s) =>
-      CA_KINDS.includes(s.name)
-        ? caT(lang, `ed_icon_${s.name}`)
-        : s.name.includes(".")
-          ? caName(this._hass, s.name)
-          : caT(lang, `ed_${s.name}`);
     this._form.computeHelper = (s) =>
       s.name === "zoom" ? caT(lang, "ed_ov_zoom_helper") : helpers.includes(s.name) ? caEditorHelper(lang, s.name) : undefined;
   }

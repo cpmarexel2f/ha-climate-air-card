@@ -69,7 +69,7 @@ const CA_I18N = {
     ed_name: "Name",
     ed_name_helper: "Leave empty to use the device name",
     ed_icon: "Icon",
-    ed_icon_helper: "Replaces the illustration (overview: the header icon)",
+    ed_icon_helper: "Replaces the illustration",
     ed_illustration: "Illustration",
     ed_illustration_helper: "Automatic: picked from the device model and name",
     ill_auto: "Automatic",
@@ -90,17 +90,13 @@ const CA_I18N = {
     ed_advanced: "Advanced",
     ed_entities: "Entities",
     ed_entities_helper: "Detected from the device; override a role here, e.g. pm25: sensor.living_room_pm25",
-    ed_devices: "Devices",
-    ed_devices_helper: "Per-device overrides, e.g. - entity: fan.bedroom, name: Bedroom, type: purifier",
     ed_title: "Title",
     ed_title_helper: "Leave empty for “Climate & air”",
-    ed_icons: "Icons",
-    ed_icons_helper: "An icon instead of the illustration, for every device of a kind or for one device; empty keeps the illustration",
-    ed_illustrations: "Illustrations",
-    ed_illustrations_helper: "The look of every device of a kind, then of each device; Automatic picks it from the device model",
-    ed_icon_aircon: "All air conditioners",
-    ed_icon_purifier: "All air purifiers",
-    ed_icon_fan: "All fans",
+    ed_kinds: "Device types",
+    ed_kinds_helper: "The illustration and the icon of every device of a type; an icon replaces the illustration",
+    ed_devs: "Devices",
+    ed_devs_helper: "Name, type, illustration and icon of each device; empty: automatic",
+    ed_type: "Type",
     ed_group_by: "Grouping",
     ed_group_type: "By device type",
     ed_group_area: "By area",
@@ -173,7 +169,7 @@ const CA_I18N = {
     ed_name: "Nom",
     ed_name_helper: "Laisser vide pour le nom de l'appareil",
     ed_icon: "Icône",
-    ed_icon_helper: "Remplace l'illustration (overview : l'icône de l'en-tête)",
+    ed_icon_helper: "Remplace l'illustration",
     ed_illustration: "Illustration",
     ed_illustration_helper: "Automatique : choisie d'après le modèle et le nom de l'appareil",
     ill_auto: "Automatique",
@@ -194,17 +190,13 @@ const CA_I18N = {
     ed_advanced: "Avancé",
     ed_entities: "Entités",
     ed_entities_helper: "Détectées depuis l'appareil ; forcer un rôle ici, ex. pm25: sensor.sejour_pm25",
-    ed_devices: "Appareils",
-    ed_devices_helper: "Réglages par appareil, ex. - entity: fan.chambre, name: Chambre, type: purifier",
     ed_title: "Titre",
     ed_title_helper: "Laisser vide pour « Climat et air »",
-    ed_icons: "Icônes",
-    ed_icons_helper: "Une icône à la place de l'illustration, pour tous les appareils d'un type ou pour un appareil ; vide garde l'illustration",
-    ed_illustrations: "Illustrations",
-    ed_illustrations_helper: "L'apparence de tous les appareils d'un type, puis de chaque appareil ; Automatique la choisit d'après le modèle",
-    ed_icon_aircon: "Tous les climatiseurs",
-    ed_icon_purifier: "Tous les purificateurs",
-    ed_icon_fan: "Tous les ventilateurs",
+    ed_kinds: "Types d'appareils",
+    ed_kinds_helper: "L'illustration et l'icône de tous les appareils d'un type ; une icône remplace l'illustration",
+    ed_devs: "Appareils",
+    ed_devs_helper: "Nom, type, illustration et icône de chaque appareil ; vide : automatique",
+    ed_type: "Type",
     ed_group_by: "Regroupement",
     ed_group_type: "Par type d'appareil",
     ed_group_area: "Par pièce",
@@ -1173,13 +1165,22 @@ class CaCardEditor extends HTMLElement {
     this._form.schema = this._schema();
     this._form.computeLabel = (s) => caT(lang, `ed_${s.name}`);
     this._form.computeHelper = (s) => (helpers.includes(s.name) ? caEditorHelper(lang, s.name) : undefined);
-    this._form.data = { ...this._defaults(), ...this._config };
+    this._form.data = this._data();
+  }
+
+  // The form's data from the config, and the config from the form's data (the overview edits its lists as sections).
+  _data() {
+    return { ...this._defaults(), ...this._config };
+  }
+
+  _fromForm(value) {
+    return value;
   }
 
   _valueChanged(ev) {
     ev.stopPropagation();
     const lang = caLang(this._config, this._hass);
-    this._config = caCleanConfig(ev.detail.value, this._defaults(), this._config.type);
+    this._config = caCleanConfig(this._fromForm(ev.detail.value), this._defaults(), this._config.type);
     if (lang !== caLang(this._config, this._hass)) this._render();
     this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true }));
   }

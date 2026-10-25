@@ -191,21 +191,51 @@ test("overview: an icon replaces the illustration, per kind of device or per dev
   assert.match(body, /data-toggle="climate\.air_conditioner"[^>]*><div class="picture k-aircon/);
 });
 
-test("overview editor: an icons section with each kind of device, then each device", () => {
+test("overview editor: device types and devices as sections, written back as illustrations, icons and devices", () => {
   const ed = new (lib.customElements.get("climate-air-overview-card-editor"))();
-  ed.setConfig({ type: "custom:climate-air-overview-card", exclude: ["fan.office_fan_fan"] });
+  ed.setConfig({
+    type: "custom:climate-air-overview-card",
+    exclude: ["fan.office_fan_fan"],
+    illustrations: { aircon: "window", "fan.bedroom_purifier": "cylinder" },
+    icons: { fan: "mdi:fan-speed-1" },
+    devices: [{ entity: "fan.bedroom_fan_fan", name: "Chambre" }, { entity: "fan.office_fan_fan", name: "Bureau" }],
+  });
   ed.hass = makeHass("fr");
-  const section = ed._form.schema.find((s) => s.name === "icons");
-  const names = section.schema.map((s) => s.name);
-  assert.deepEqual([...names], ["aircon", "purifier", "fan", "climate.air_conditioner", "fan.bedroom_purifier", "fan.living_room_purifier_air_purifier", "fan.bedroom_fan_fan"]);
-  assert.equal(ed._form.computeLabel({ name: "fan" }), "Tous les ventilateurs");
-  assert.equal(ed._form.computeLabel({ name: "fan.bedroom_fan_fan" }), "Ventilateur chambre");
-  assert.equal(ed._form.computeLabel({ name: "title" }), "Titre");
-  // Illustrations: only the kinds that have several (no fans), then their devices.
-  const ill = ed._form.schema.find((s) => s.name === "illustrations").schema.map((s) => s.name);
-  assert.deepEqual([...ill], ["aircon", "purifier", "climate.air_conditioner", "fan.bedroom_purifier", "fan.living_room_purifier_air_purifier"]);
-  const out = lib.caCleanConfig({ icons: { fan: "", "fan.bedroom_fan_fan": "mdi:ceiling-fan" } }, {}, "custom:climate-air-overview-card");
-  assert.deepEqual(JSON.parse(JSON.stringify(out)), { type: "custom:climate-air-overview-card", icons: { "fan.bedroom_fan_fan": "mdi:ceiling-fan" } });
+  const json = (v) => JSON.parse(JSON.stringify(v));
+  const schema = ed._form.schema;
+  const kinds = schema.find((s) => s.name === "kinds");
+  assert.deepEqual(json(kinds.schema.map((k) => [k.name, k.title, k.schema.map((f) => f.name)])), [
+    ["aircon", "Climatiseurs", ["illustration", "icon"]],
+    ["purifier", "Purificateurs", ["illustration", "icon"]],
+    ["fan", "Ventilateurs", ["icon"]],
+  ]);
+  const devs = schema.find((s) => s.name === "devs");
+  assert.deepEqual(json(devs.schema.map((d) => [d.name, d.title])), [
+    ["climate.air_conditioner", "Climatiseur"],
+    ["fan.bedroom_purifier", "Purificateur chambre"],
+    ["fan.living_room_purifier_air_purifier", "Purificateur séjour"],
+    ["fan.bedroom_fan_fan", "Ventilateur chambre"],
+  ]);
+  assert.deepEqual(json(devs.schema[3].schema.map((f) => f.name)), ["name", "type", "icon"]);
+  assert.equal(ed._form.computeLabel({ name: "type" }), "Type");
+  // The device's illustration moves from `illustrations` into its `devices` entry; the excluded device keeps its own.
+  const data = ed._form.data;
+  assert.deepEqual(json(data.devs["fan.bedroom_purifier"]), { type: "auto", illustration: "cylinder" });
+  assert.equal(data.kinds.aircon.illustration, "window");
+  data.devs["climate.air_conditioner"].icon = "mdi:air-conditioner";
+  ed._valueChanged({ stopPropagation() {}, detail: { value: data } });
+  assert.deepEqual(json(ed._config), {
+    type: "custom:climate-air-overview-card",
+    exclude: ["fan.office_fan_fan"],
+    illustrations: { aircon: "window" },
+    icons: { fan: "mdi:fan-speed-1" },
+    devices: [
+      { entity: "climate.air_conditioner", icon: "mdi:air-conditioner" },
+      { entity: "fan.bedroom_purifier", illustration: "cylinder" },
+      { entity: "fan.bedroom_fan_fan", name: "Chambre" },
+      { entity: "fan.office_fan_fan", name: "Bureau" },
+    ],
+  });
 });
 
 test("values integrations leave untranslated are translated by the cards", () => {

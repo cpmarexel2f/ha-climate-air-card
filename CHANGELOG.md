@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.0
+
+### Changes
+- Overview editor: the devices are set visually, without YAML. A **Device types** section sets the illustration and the icon of every air conditioner, purifier or fan; a **Devices** section has a block per device with its name, type, illustration and icon. They are written as `illustrations`, `icons` and `devices` as before; a device's settings found under `illustrations` or `icons` move into its `devices` entry. The **Advanced** section keeps the language only.
+
 ## 1.2.2
 
 ### Changes

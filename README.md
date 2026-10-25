@@ -24,7 +24,7 @@ Lovelace cards for Home Assistant's **air purifiers, fans and air conditioners**
 |---|---|---|---|
 | ![Overview](https://raw.githubusercontent.com/juju35/ha-climate-air-card/main/screenshots/overview-all.png) | ![Air purifier](https://raw.githubusercontent.com/juju35/ha-climate-air-card/main/screenshots/purifier-card.png) | ![Fan](https://raw.githubusercontent.com/juju35/ha-climate-air-card/main/screenshots/fan-card.png) | ![Air conditioner](https://raw.githubusercontent.com/juju35/ha-climate-air-card/main/screenshots/aircon-card.png) |
 
-All the cards share the same look (header with a status pill and a power button, illustration next to the state, mini cards with a detail button), a visual editor in the dashboard UI covering every option (the entity overrides in its folded **Advanced** section, as YAML), English and French labels following the Home Assistant language, light and dark themes, and come in a single HACS download with no dependency.
+All the cards share the same look (header with a status pill and a power button, illustration next to the state, mini cards with a detail button), a visual editor in the dashboard UI covering every option (the device cards' entity overrides in its folded **Advanced** section, as YAML), English and French labels following the Home Assistant language, light and dark themes, and come in a single HACS download with no dependency.
 
 ## Features
 
@@ -39,7 +39,7 @@ All the cards share the same look (header with a status pill and a power button,
 - **Tap** the icon of a tile to turn the device on or off; **tap** the tile to unfold its full card at the top of the overview, tap it again or anywhere else to fold it back
 - Only the devices that are on or need attention show; the **detail** button (top right) shows every device, and back, as does a click anywhere else (`zoom: false`: every device, always, no button)
 - Header with how many devices are on and how many filters need care
-- The illustration of every device of a kind or of each device (`illustrations`, guessed from the device model otherwise), or an icon instead (`icons`); the header icon (`icon`). All in the visual editor too
+- The illustration of every device of a kind or of each device (`illustrations`, guessed from the device model otherwise), or an icon instead (`icons`); a name and a type per device (`devices`); the header icon (`icon`). In the visual editor, the **Device types** and **Devices** sections set all of them, without YAML
 
 ### Air purifier
 
@@ -166,8 +166,8 @@ devices:
 |---|---|---|---|
 | `title` | ❌ | Climate & air | Card title |
 | `icon` | ❌ | `mdi:air-filter` | Header icon |
-| `illustrations` | ❌ | Auto | Tile illustrations, by kind of device (`aircon`, `purifier`) and by entity ID, the device's own winning: purifier `tower`, `cylinder` or `box`; air conditioner `split`, `portable` or `window`. Unset or `auto`: guessed from the device model and name. The unfolded card uses the same one. In the visual editor's **Illustrations** section |
-| `icons` | ❌ | — | An icon instead of the illustration, by kind of device (`aircon`, `purifier`, `fan`) or by entity ID; it moves with the device state (turning fan, mode icon of an air conditioner). In the visual editor's **Icons** section |
+| `illustrations` | ❌ | Auto | Tile illustrations, by kind of device (`aircon`, `purifier`) and by entity ID, the device's own winning: purifier `tower`, `cylinder` or `box`; air conditioner `split`, `portable` or `window`. Unset or `auto`: guessed from the device model and name. The unfolded card uses the same one. In the visual editor's **Device types** and **Devices** sections |
+| `icons` | ❌ | — | An icon instead of the illustration, by kind of device (`aircon`, `purifier`, `fan`) or by entity ID; it moves with the device state (turning fan, mode icon of an air conditioner). In the visual editor's **Device types** and **Devices** sections |
 | `group_by` | ❌ | `type` | `type` (air conditioners, air purifiers, fans), `area` or `none` |
 | `columns` | ❌ | `2` | Number of tile columns (1 on narrow cards unless set) |
 | `zoom` | ❌ | `true` | Only the devices on or needing attention show, and a detail button shows them all; `false`: every device, always |
