@@ -46,7 +46,7 @@ All the cards share the same look (header with a status pill and a power button,
 `custom:climate-air-purifier-card` — An air purifier (`fan` entity) and the sensors of its device.
 
 - The PM2.5 density (or the air quality index) in large, with its level: *Good air*, *Moderate air*, *Poor air*, *Very poor air*; the card takes the colour of the air quality
-- Animated illustration while it runs: the fan turns (faster with the speed), clean air rises and dust is drawn into the intake; the display ring and the floor light take the air quality colour. Three shapes: a tower, a round purifier and a square box, picked from the device model or set with `illustration`
+- Animated illustration while it runs: the fan turns (faster with the speed), clean air rises and dust is drawn into the intake; the display ring and the floor light take the air quality colour. Three shapes: a tower (a tall box whose display shows the PM2.5), a round purifier and a square box, picked from the device model or set with `illustration`
 - Filter life bar (with its hours of use on hover) and a *Replace the filter* alert at 10 % or less
 - Presets as segmented buttons (Auto, Sleep, Favorite…), or the device's mode select when it has no presets (HomeKit purifiers); speed slider; favorite level in the Favorite preset
 - Temperature, humidity and PM10 chips; child lock, sound and indicator light toggles

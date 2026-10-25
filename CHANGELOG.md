@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.2
+
+### Changes
+- Purifier `tower` illustration redrawn: a tall box with slightly rounded corners, a top grille, a finely perforated lower half and a round display showing the PM2.5 (or the air quality index) above a small air quality light, on the cards and the overview tiles.
+
 ## 1.2.1
 
 ### Fixes

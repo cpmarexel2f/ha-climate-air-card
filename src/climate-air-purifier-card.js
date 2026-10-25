@@ -31,17 +31,23 @@ const caDots = (fn) => {
 };
 
 const CA_PURIFIER_ARTS = {
-  // A tall rounded tower with a grid of holes on its lower half.
-  tower:
-    '<rect x="17" y="14" width="46" height="74" rx="9" fill="url(#ca-pb)" stroke="#c3cad2" stroke-width="1.2"/>' +
-    `<ellipse cx="40" cy="15" rx="21.5" ry="5.6" fill="url(#ca-pt)"/>${caRotor(15, 18)}` +
-    '<rect x="31" y="25" width="18" height="15" rx="4" fill="#1d2632"/><circle class="ring" cx="40" cy="32.5" r="4.6"/>' +
-    `<g fill="#b9c1ca">${caDots((dot) => {
-      for (let y = 50; y <= 82; y += 4) for (let x = 23; x <= 57; x += 4) dot(x, y, 0.95);
-    })}</g>` +
-    '<rect x="20" y="86" width="40" height="3" rx="1.5" fill="#aab3bd"/>',
+  // A tall box with slightly rounded corners: air out of the top grille, in through the fine perforation of the lower
+  // half, a round display showing the PM2.5 above a small air quality light.
+  tower: (display) =>
+    '<rect x="18.5" y="7" width="43" height="81" rx="4.5" fill="url(#ca-pb)" stroke="#c3cad2" stroke-width="1.2"/>' +
+    '<rect x="21" y="7.8" width="38" height="2.6" rx="1.3" fill="#d5dbe2"/>' +
+    `<path d="${Array.from({ length: 12 }, (_, i) => `M${22.6 + i * 3.1} 8.1v2`).join("")}" stroke="#aab3bd" stroke-width=".7"/>` +
+    '<circle cx="40" cy="25" r="7.4" fill="#1d2632" stroke="#c3cad2" stroke-width=".8"/>' +
+    `<text class="pmv" x="40" y="24" text-anchor="middle">${caEsc(display)}</text>` +
+    '<circle class="ring" cx="40" cy="29.2" r="1.3"/>' +
+    `<g fill="#c3cad2">${caDots((dot) => {
+      for (let row = 0; row < 15; row++) {
+        const y = 46 + row * 2.75;
+        for (let x = 22.2 + (row % 2) * 1.4; x <= 58; x += 2.8) dot(x, y, 0.6);
+      }
+    })}</g>`,
   // A round cylinder drawing air all around, with a small round display at the top.
-  cylinder:
+  cylinder: () =>
     '<path d="M21 13V85A19 4.6 0 0 0 59 85V13Z" fill="url(#ca-pc)" stroke="#c3cad2" stroke-width="1.2"/>' +
     `<ellipse cx="40" cy="13" rx="19" ry="4.6" fill="url(#ca-pt)" stroke="#c3cad2" stroke-width="1"/>${caRotor(13, 16)}` +
     '<circle cx="40" cy="25" r="5.4" fill="#1d2632"/><circle class="ring" cx="40" cy="25" r="3.6"/>' +
@@ -54,7 +60,7 @@ const CA_PURIFIER_ARTS = {
       }
     })}</g>`,
   // A square box: air out of the slatted top, in through the vertical slots of the lower front, a display ring above.
-  box:
+  box: () =>
     '<rect x="12" y="17" width="56" height="71" rx="7" fill="url(#ca-pb)" stroke="#c3cad2" stroke-width="1.2"/>' +
     '<rect x="17" y="19" width="46" height="5" rx="2.5" fill="#3a434e"/>' +
     `<path d="${Array.from({ length: 14 }, (_, i) => `M${19.5 + i * 3.1} 19.6v3.8`).join("")}" stroke="#8b96a3" stroke-width=".9"/>` +
@@ -63,7 +69,8 @@ const CA_PURIFIER_ARTS = {
     `<g fill="#c3cad2">${Array.from({ length: 12 }, (_, i) => `<rect x="${(18.6 + i * 3.8).toFixed(1)}" y="55" width="1.5" height="27" rx=".75"/>`).join("")}</g>`,
 };
 
-const caPurifierArt = (variant) => `<svg viewBox="0 0 80 94" aria-hidden="true">${CA_PURIFIER_COMMON}${CA_PURIFIER_ARTS[variant] || CA_PURIFIER_ARTS.tower}</svg>`;
+const caPurifierArt = (variant, display = "") =>
+  `<svg viewBox="0 0 80 94" aria-hidden="true">${CA_PURIFIER_COMMON}${(CA_PURIFIER_ARTS[variant] || CA_PURIFIER_ARTS.tower)(display)}</svg>`;
 
 // The shape that looks most like the device: square for a Smartmi box (P1, P2…), round for a cylinder (Xiaomi 4,
 // 4 Lite / Compact / Pro, Elite, Smartmi E1…), a tower otherwise.
@@ -77,10 +84,11 @@ const caPurifierVariant = (text) => {
 CA_ART.purifier = {
   variants: ["tower", "cylinder", "box"],
   guess: caPurifierVariant,
-  render: (variant, s) => ({ svg: caPurifierArt(variant), style: `--ca-spin:${caSpin(s.pct)}s;--ca-aq:${s.aqColor || CA_FAN_COLOR}` }),
+  render: (variant, s) => ({ svg: caPurifierArt(variant, s.running ? s.display : ""), style: `--ca-spin:${caSpin(s.pct)}s;--ca-aq:${s.aqColor || CA_FAN_COLOR}` }),
   styles: `
     .k-purifier .rotor { fill: #8b96a3; transform-box: fill-box; transform-origin: center; }
     .k-purifier .ring { fill: none; stroke: #6b7682; stroke-width: 1.8; }
+    .k-purifier .pmv { font: 600 6px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #6fc8ff; dominant-baseline: middle; }
     .k-purifier.running .ring { stroke: var(--ca-aq); filter: drop-shadow(0 0 2px var(--ca-aq)); }
     .k-purifier .aq-stop { stop-color: var(--ca-aq); }
     .k-purifier .floor { opacity: 0; transition: opacity .6s; }
@@ -148,6 +156,7 @@ class ClimateAirPurifierCard extends CaCard {
       preset,
       chips,
       aqColor,
+      display: pm25 != null ? caFmtNum(this._lang(), pm25, 0) : aqi != null ? caFmtNum(this._lang(), aqi, 0) : "",
     };
   }
 

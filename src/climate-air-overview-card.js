@@ -158,7 +158,12 @@ class ClimateAirOverviewCard extends CaElement {
         item.text = item.on ? [quality || this._t("st_purifying"), aq ? this._t(`aq_${aq.key}`) : ""].filter(Boolean).join(" · ") : [this._t("st_off"), quality].filter(Boolean).join(" · ");
         item.color = item.on ? aq?.color || CA_FAN_COLOR : CA_IDLE;
         item.anim = item.on ? "pulse" : "";
-        item.art = { running: item.on, pct, aqColor: aq?.color || CA_FAN_COLOR };
+        item.art = {
+          running: item.on,
+          pct,
+          aqColor: aq?.color || CA_FAN_COLOR,
+          display: pm25 != null ? caFmtNum(lang, pm25, 0) : aqi != null ? caFmtNum(lang, aqi, 0) : "",
+        };
         const filter = caNum(h.states[this._role(id, "filter")]);
         if (this._config.show_alerts !== false && filter != null && filter <= 10) item.alert = this._t("filter_low");
       } else {
