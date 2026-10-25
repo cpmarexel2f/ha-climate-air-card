@@ -81,7 +81,7 @@ class ClimateAirOverviewCard extends CaElement {
     for (const [id, o] of Object.entries(over)) if (CA_KINDS.includes(o.type) && h.states[id]) kinds.set(id, o.type);
     return [...kinds]
       .filter(([id]) => !exclude.has(id))
-      .map(([id, kind]) => this._item(id, kind, over[id] || {}))
+      .map(([id, kind]) => this._item(id, kind, over[id] || {}, c.icons || {}))
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 
@@ -89,7 +89,8 @@ class ClimateAirOverviewCard extends CaElement {
     return caFindRole(this._hass, caDeviceEntities(this._hass, caDeviceOf(this._hass, id)), role);
   }
 
-  _item(id, kind, o) {
+  // `icons`: an icon per device (by entity ID) or per kind of device (aircon, purifier, fan), from the config.
+  _item(id, kind, o, icons) {
     const h = this._hass;
     const lang = this._lang();
     const st = h.states[id];
@@ -99,7 +100,7 @@ class ClimateAirOverviewCard extends CaElement {
       kind,
       name: o.name || caName(h, id),
       area: caAreaName(h, id),
-      icon: o.icon || CA_KIND_ICONS[kind],
+      icon: o.icon || icons[id] || icons[kind] || CA_KIND_ICONS[kind],
       on: false,
       alert: "",
       anim: "",
@@ -126,7 +127,8 @@ class ClimateAirOverviewCard extends CaElement {
         const target = a.temperature != null && mode !== "fan_only" ? temp(Number(a.temperature)) : "";
         item.text = [label, target].filter(Boolean).join(" · ");
         item.color = CA_MODE_COLORS[mode] || CA_FAN_COLOR;
-        item.icon = o.icon || CA_MODE_ICONS[mode] || item.icon;
+        // A running air conditioner shows its mode, unless an icon was set for it.
+        item.icon = o.icon || icons[id] || icons[kind] || CA_MODE_ICONS[mode] || item.icon;
         item.anim = CA_AC_ICON_ANIM[mode] || "breathe";
         if (item.anim === "spin") item.spin = caSpin(50);
       } else {
@@ -182,7 +184,7 @@ class ClimateAirOverviewCard extends CaElement {
         ? ""
         : `<button class="zoom" data-action="zoom" title="${caEsc(this._t(this._zoomed ? "zoom_out" : "zoom_in"))}" aria-label="${caEsc(this._t(this._zoomed ? "zoom_out" : "zoom_in"))}"><ha-icon icon="${this._zoomed ? "mdi:arrow-collapse" : "mdi:arrow-expand"}"></ha-icon></button>`;
     card.querySelector(".head").innerHTML =
-      `<div class="badge"><ha-icon icon="mdi:air-filter"></ha-icon></div><div class="title">${caEsc(c.title || this._t("title"))}</div>` +
+      `<div class="badge"><ha-icon icon="${caEsc(c.icon || "mdi:air-filter")}"></ha-icon></div><div class="title">${caEsc(c.title || this._t("title"))}</div>` +
       `${alertChip}<div class="pill">${caEsc(on.length ? this._t("running_n", { n: on.length }) : this._t("all_off"))}</div>${zoom}`;
 
     const body = card.querySelector(".body");
@@ -354,15 +356,23 @@ class ClimateAirOverviewCardEditor extends CaCardEditor {
   }
 
   _helpers() {
-    return ["title", "columns", "exclude", "include", "language", "devices"];
+    return ["title", "icon", "columns", "exclude", "include", "icons", "language", "devices"];
   }
 
   _schema() {
     const lang = caLang(this._config, this._hass);
     const found = CA_KINDS.flatMap((k) => caFindEntities(this._hass, k));
     for (const id of this._config?.exclude || []) if (!found.includes(id)) found.push(id);
+    const shown = found.filter((id) => !(this._config?.exclude || []).includes(id));
     return [
-      { name: "title", selector: { text: {} } },
+      {
+        type: "grid",
+        name: "",
+        schema: [
+          { name: "title", selector: { text: {} } },
+          { name: "icon", selector: { icon: {} } },
+        ],
+      },
       {
         type: "grid",
         name: "",
@@ -382,6 +392,14 @@ class ClimateAirOverviewCardEditor extends CaCardEditor {
       { name: "zoom", selector: { boolean: {} } },
       { name: "exclude", selector: { entity: { multiple: true, include_entities: found } } },
       { name: "include", selector: { entity: { multiple: true, domain: ["climate", "fan"] } } },
+      // One icon per kind of device, then one per device; empty keeps the default.
+      {
+        name: "icons",
+        type: "expandable",
+        flatten: false,
+        title: caT(lang, "ed_icons"),
+        schema: [...CA_KINDS, ...shown, ...(this._config?.include || [])].map((name) => ({ name, selector: { icon: {} } })),
+      },
       ...caAdvanced(lang, "language", "devices"),
     ];
   }
@@ -391,6 +409,13 @@ class ClimateAirOverviewCardEditor extends CaCardEditor {
     if (!this._form) return;
     const lang = caLang(this._config, this._hass);
     const helpers = this._helpers();
+    // In the icons section: a kind of device ("All fans") or a device, by its name.
+    this._form.computeLabel = (s) =>
+      CA_KINDS.includes(s.name)
+        ? caT(lang, `ed_icon_${s.name}`)
+        : s.name.includes(".")
+          ? caName(this._hass, s.name)
+          : caT(lang, `ed_${s.name}`);
     this._form.computeHelper = (s) =>
       s.name === "zoom" ? caT(lang, "ed_ov_zoom_helper") : helpers.includes(s.name) ? caEditorHelper(lang, s.name) : undefined;
   }

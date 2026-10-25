@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.0
+
+### Changes
+- Overview: configurable icons, in the visual editor too. `icon` sets the header icon; `icons` sets the tile icons, for every device of a kind (`aircon`, `purifier`, `fan`) or for one device (by entity ID), the device's own winning. A running air conditioner keeps its mode icon unless one is set. The editor's new **Icons** section lists every kind and every device found.
+
 ## 1.0.0
 
 ### Changes

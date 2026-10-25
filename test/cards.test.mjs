@@ -157,3 +157,32 @@ test("overview: tapping the icon turns the device off, tapping the tile unfolds 
   assert.equal(panel.hidden, false);
   assert.equal(panel.children[0]?._config.entity, "climate.air_conditioner");
 });
+
+test("overview: icons per kind of device, per device, and for the header", () => {
+  const { body, head } = overview({
+    zoom: false,
+    icon: "mdi:home-thermometer",
+    icons: { fan: "mdi:fan-speed-1", "fan.bedroom_fan_fan": "mdi:ceiling-fan", "climate.air_conditioner": "mdi:air-conditioner" },
+  });
+  assert.match(head, /mdi:home-thermometer/);
+  // The device's own icon wins over its kind's; the other fan takes the kind's icon.
+  assert.match(body, /data-toggle="fan\.bedroom_fan_fan"[^>]*><ha-icon icon="mdi:ceiling-fan">/);
+  assert.match(body, /data-toggle="fan\.office_fan_fan"[^>]*><ha-icon icon="mdi:fan-speed-1">/);
+  // A running air conditioner shows its mode icon, unless one is set.
+  assert.match(body, /data-toggle="climate\.air_conditioner"[^>]*><ha-icon icon="mdi:air-conditioner">/);
+  assert.match(overview().body, /data-toggle="climate\.air_conditioner"[^>]*><ha-icon icon="mdi:snowflake">/);
+});
+
+test("overview editor: an icons section with each kind of device, then each device", () => {
+  const ed = new (lib.customElements.get("climate-air-overview-card-editor"))();
+  ed.setConfig({ type: "custom:climate-air-overview-card", exclude: ["fan.office_fan_fan"] });
+  ed.hass = makeHass("fr");
+  const section = ed._form.schema.find((s) => s.name === "icons");
+  const names = section.schema.map((s) => s.name);
+  assert.deepEqual([...names], ["aircon", "purifier", "fan", "climate.air_conditioner", "fan.bedroom_purifier", "fan.living_room_purifier_air_purifier", "fan.bedroom_fan_fan"]);
+  assert.equal(ed._form.computeLabel({ name: "fan" }), "Tous les ventilateurs");
+  assert.equal(ed._form.computeLabel({ name: "fan.bedroom_fan_fan" }), "Ventilateur chambre");
+  assert.equal(ed._form.computeLabel({ name: "title" }), "Titre");
+  const out = lib.caCleanConfig({ icons: { fan: "", "fan.bedroom_fan_fan": "mdi:ceiling-fan" } }, {}, "custom:climate-air-overview-card");
+  assert.deepEqual(JSON.parse(JSON.stringify(out)), { type: "custom:climate-air-overview-card", icons: { "fan.bedroom_fan_fan": "mdi:ceiling-fan" } });
+});

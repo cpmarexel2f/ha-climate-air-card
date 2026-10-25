@@ -69,7 +69,7 @@ const CA_I18N = {
     ed_name: "Name",
     ed_name_helper: "Leave empty to use the device name",
     ed_icon: "Icon",
-    ed_icon_helper: "Replaces the illustration",
+    ed_icon_helper: "Replaces the illustration (overview: the header icon)",
     ed_illustration: "Illustration",
     ed_illustration_helper: "Automatic: picked from the device model and name",
     ill_auto: "Automatic",
@@ -94,6 +94,11 @@ const CA_I18N = {
     ed_devices_helper: "Per-device overrides, e.g. - entity: fan.bedroom, name: Bedroom, type: purifier",
     ed_title: "Title",
     ed_title_helper: "Leave empty for “Climate & air”",
+    ed_icons: "Icons",
+    ed_icons_helper: "An icon for every device of a kind, then for each device; empty keeps the default icon",
+    ed_icon_aircon: "All air conditioners",
+    ed_icon_purifier: "All air purifiers",
+    ed_icon_fan: "All fans",
     ed_group_by: "Grouping",
     ed_group_type: "By device type",
     ed_group_area: "By area",
@@ -166,7 +171,7 @@ const CA_I18N = {
     ed_name: "Nom",
     ed_name_helper: "Laisser vide pour le nom de l'appareil",
     ed_icon: "Icône",
-    ed_icon_helper: "Remplace l'illustration",
+    ed_icon_helper: "Remplace l'illustration (overview : l'icône de l'en-tête)",
     ed_illustration: "Illustration",
     ed_illustration_helper: "Automatique : choisie d'après le modèle et le nom de l'appareil",
     ill_auto: "Automatique",
@@ -191,6 +196,11 @@ const CA_I18N = {
     ed_devices_helper: "Réglages par appareil, ex. - entity: fan.chambre, name: Chambre, type: purifier",
     ed_title: "Titre",
     ed_title_helper: "Laisser vide pour « Climat et air »",
+    ed_icons: "Icônes",
+    ed_icons_helper: "Une icône pour tous les appareils d'un type, puis pour chaque appareil ; vide garde l'icône par défaut",
+    ed_icon_aircon: "Tous les climatiseurs",
+    ed_icon_purifier: "Tous les purificateurs",
+    ed_icon_fan: "Tous les ventilateurs",
     ed_group_by: "Regroupement",
     ed_group_type: "Par type d'appareil",
     ed_group_area: "Par pièce",
@@ -1145,10 +1155,11 @@ function caCleanConfig(value, defaults, type) {
     const v = out[k];
     if (v === "" || v == null || (Array.isArray(v) && !v.length) || v === defaults[k]) delete out[k];
   }
-  if (out.entities && typeof out.entities === "object") {
-    const e = Object.fromEntries(Object.entries(out.entities).filter(([, v]) => v));
-    if (Object.keys(e).length) out.entities = e;
-    else delete out.entities;
+  for (const key of ["entities", "icons"]) {
+    if (!out[key] || typeof out[key] !== "object" || Array.isArray(out[key])) continue;
+    const e = Object.fromEntries(Object.entries(out[key]).filter(([, v]) => v));
+    if (Object.keys(e).length) out[key] = e;
+    else delete out[key];
   }
   return type ? { type, ...out } : out;
 }
