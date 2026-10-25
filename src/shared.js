@@ -1,0 +1,1175 @@
+/*
+ * ha-climate-air-card — shared code: i18n, device discovery, the base card, the mini cards and the editor.
+ * The device cards (purifier.js, fan.js, aircon.js) and the overview (overview.js) build on it.
+ * https://github.com/juju35/ha-climate-air-card
+ */
+const CA_VERSION = "__VERSION__";
+const CA_REPO = "https://github.com/juju35/ha-climate-air-card";
+
+// ── i18n ─────────────────────────────────────────────────────────────────────
+const CA_I18N = {
+  en: {
+    purifier: "Air purifier",
+    fan: "Fan",
+    aircon: "Air conditioner",
+    st_off: "Off",
+    st_on: "On",
+    st_unavailable: "Unavailable",
+    st_purifying: "Purifying",
+    aq_good: "Good air",
+    aq_moderate: "Moderate air",
+    aq_unhealthy: "Poor air",
+    aq_bad: "Very poor air",
+    speed: "Speed",
+    mode: "Mode",
+    preset: "Preset",
+    oscillation: "Oscillation",
+    angle: "Angle",
+    timer: "Timer",
+    timer_off: "Off",
+    child_lock: "Child lock",
+    buzzer: "Sound",
+    light: "Light",
+    brightness: "Display",
+    anion: "Ionizer",
+    favorite: "Favorite level",
+    filter: "Filter",
+    filter_low: "Replace the filter",
+    filter_dirty: "Clean the filter",
+    hours: "{n} h",
+    target: "Target",
+    indoor: "Indoor",
+    outdoor: "Outdoor",
+    power_draw: "Power",
+    fan_mode: "Fan",
+    swing_mode: "Swing",
+    preset_mode: "Preset",
+    options: "Options",
+    offline: "Device offline",
+    no_device: "No device found",
+    power: "Power",
+    zoom_in: "Show the full card",
+    zoom_out: "Back to the compact view",
+    rotate_left: "Turn left",
+    rotate_right: "Turn right",
+    temp_down: "Lower the target",
+    temp_up: "Raise the target",
+    title: "Climate & air",
+    running_n: "{n} on",
+    all_off: "Everything is off",
+    nothing_on: "Nothing on right now",
+    g_aircon: "Air conditioners",
+    g_purifier: "Air purifiers",
+    g_fan: "Fans",
+    no_area: "No area",
+    no_devices: "No air conditioner, air purifier or fan found",
+    toggle: "Turn on / off",
+    ed_entity: "Device",
+    ed_entity_helper: "Leave empty to use the first one found",
+    ed_name: "Name",
+    ed_name_helper: "Leave empty to use the device name",
+    ed_icon: "Icon",
+    ed_icon_helper: "Replaces the illustration",
+    ed_illustration: "Illustration",
+    ed_illustration_helper: "Automatic: picked from the device model and name",
+    ill_auto: "Automatic",
+    ill_tower: "Tower",
+    ill_cylinder: "Round",
+    ill_box: "Square box",
+    ill_split: "Wall split unit",
+    ill_portable: "Portable unit",
+    ill_window: "Window split",
+    ed_show_controls: "Controls",
+    ed_show_sensors: "Measurements",
+    ed_show_alerts: "Alerts",
+    ed_zoom: "Detail button",
+    ed_zoom_helper: "Button at the top right that switches the mini card to the full card and back",
+    ed_language: "Language",
+    ed_language_helper: "Automatic: follows the Home Assistant language",
+    ed_language_auto: "Automatic",
+    ed_advanced: "Advanced",
+    ed_entities: "Entities",
+    ed_entities_helper: "Detected from the device; override a role here, e.g. pm25: sensor.living_room_pm25",
+    ed_devices: "Devices",
+    ed_devices_helper: "Per-device overrides, e.g. - entity: fan.bedroom, name: Bedroom, type: purifier",
+    ed_title: "Title",
+    ed_title_helper: "Leave empty for “Climate & air”",
+    ed_group_by: "Grouping",
+    ed_group_type: "By device type",
+    ed_group_area: "By area",
+    ed_group_none: "None",
+    ed_columns: "Columns",
+    ed_columns_helper: "Empty: 2, or 1 on narrow screens",
+    ed_ov_zoom_helper: "Only the devices on or needing attention show; the button shows every device. Off: every device, always",
+    ed_exclude: "Devices to exclude",
+    ed_include: "Devices to add",
+    ed_include_helper: "Climate or fan entities the card would not pick on its own (a heat-only thermostat, say)",
+  },
+  fr: {
+    purifier: "Purificateur",
+    fan: "Ventilateur",
+    aircon: "Climatiseur",
+    st_off: "Arrêt",
+    st_on: "En marche",
+    st_unavailable: "Indisponible",
+    st_purifying: "Purification",
+    aq_good: "Air sain",
+    aq_moderate: "Air moyen",
+    aq_unhealthy: "Air mauvais",
+    aq_bad: "Air très mauvais",
+    speed: "Vitesse",
+    mode: "Mode",
+    preset: "Préréglage",
+    oscillation: "Oscillation",
+    angle: "Angle",
+    timer: "Minuterie",
+    timer_off: "Aucune",
+    child_lock: "Sécurité enfant",
+    buzzer: "Son",
+    light: "Voyant",
+    brightness: "Écran",
+    anion: "Ions négatifs",
+    favorite: "Niveau favori",
+    filter: "Filtre",
+    filter_low: "Filtre à changer",
+    filter_dirty: "Filtre à nettoyer",
+    hours: "{n} h",
+    target: "Consigne",
+    indoor: "Intérieur",
+    outdoor: "Extérieur",
+    power_draw: "Puissance",
+    fan_mode: "Ventilation",
+    swing_mode: "Balayage",
+    preset_mode: "Préréglage",
+    options: "Options",
+    offline: "Appareil hors ligne",
+    no_device: "Aucun appareil trouvé",
+    power: "Marche / arrêt",
+    zoom_in: "Afficher la carte complète",
+    zoom_out: "Revenir à la vue compacte",
+    rotate_left: "Tourner à gauche",
+    rotate_right: "Tourner à droite",
+    temp_down: "Baisser la consigne",
+    temp_up: "Monter la consigne",
+    title: "Climat et air",
+    running_n: "{n} en marche",
+    all_off: "Tout est à l'arrêt",
+    nothing_on: "Rien en marche pour l'instant",
+    g_aircon: "Climatiseurs",
+    g_purifier: "Purificateurs",
+    g_fan: "Ventilateurs",
+    no_area: "Sans pièce",
+    no_devices: "Aucun climatiseur, purificateur ou ventilateur trouvé",
+    toggle: "Allumer / éteindre",
+    ed_entity: "Appareil",
+    ed_entity_helper: "Laisser vide pour le premier trouvé",
+    ed_name: "Nom",
+    ed_name_helper: "Laisser vide pour le nom de l'appareil",
+    ed_icon: "Icône",
+    ed_icon_helper: "Remplace l'illustration",
+    ed_illustration: "Illustration",
+    ed_illustration_helper: "Automatique : choisie d'après le modèle et le nom de l'appareil",
+    ill_auto: "Automatique",
+    ill_tower: "Tour",
+    ill_cylinder: "Ronde",
+    ill_box: "Boîte carrée",
+    ill_split: "Split mural",
+    ill_portable: "Climatiseur mobile",
+    ill_window: "Split de fenêtre",
+    ed_show_controls: "Commandes",
+    ed_show_sensors: "Mesures",
+    ed_show_alerts: "Alertes",
+    ed_zoom: "Bouton détail",
+    ed_zoom_helper: "Bouton en haut à droite qui passe la mini-carte en carte complète et inversement",
+    ed_language: "Langue",
+    ed_language_helper: "Automatique : suit la langue de Home Assistant",
+    ed_language_auto: "Automatique",
+    ed_advanced: "Avancé",
+    ed_entities: "Entités",
+    ed_entities_helper: "Détectées depuis l'appareil ; forcer un rôle ici, ex. pm25: sensor.sejour_pm25",
+    ed_devices: "Appareils",
+    ed_devices_helper: "Réglages par appareil, ex. - entity: fan.chambre, name: Chambre, type: purifier",
+    ed_title: "Titre",
+    ed_title_helper: "Laisser vide pour « Climat et air »",
+    ed_group_by: "Regroupement",
+    ed_group_type: "Par type d'appareil",
+    ed_group_area: "Par pièce",
+    ed_group_none: "Aucun",
+    ed_columns: "Colonnes",
+    ed_columns_helper: "Vide : 2, ou 1 sur les écrans étroits",
+    ed_ov_zoom_helper:
+      "Seuls les appareils en marche ou à surveiller s'affichent ; le bouton affiche tous les appareils. Désactivé : toujours tous les appareils",
+    ed_exclude: "Appareils à exclure",
+    ed_include: "Appareils à ajouter",
+    ed_include_helper: "Entités climate ou fan que la carte ne prendrait pas d'elle-même (un thermostat chauffage seul, par exemple)",
+  },
+};
+
+function caT(lang, key, vars) {
+  const s = (CA_I18N[lang] || CA_I18N.en)[key] ?? CA_I18N.en[key] ?? key;
+  return vars ? s.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? "") : s;
+}
+
+function caLang(config, hass) {
+  const l = (config?.language || hass?.language || globalThis.document?.documentElement?.lang || "en").split("-")[0];
+  return CA_I18N[l] ? l : "en";
+}
+
+function caEsc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+}
+
+const caUnavailable = (st) => !st || st.state === "unavailable" || st.state === "unknown";
+const caNum = (st) => (caUnavailable(st) ? null : Number.isFinite(Number(st.state)) ? Number(st.state) : null);
+
+// "laundry_mode_natural" → "Laundry mode natural": the fallback when Home Assistant has no translation.
+function caHumanize(v) {
+  const s = String(v ?? "").replace(/_/g, " ").trim();
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function caFmtNum(lang, v, digits = 1) {
+  if (v == null || !Number.isFinite(v)) return "—";
+  return v.toLocaleString(lang, { maximumFractionDigits: digits });
+}
+
+// ── Colors ───────────────────────────────────────────────────────────────────
+const CA_IDLE = "var(--disabled-text-color, #9e9e9e)";
+const CA_FAN_COLOR = "var(--state-fan-on-color, var(--info-color, #039be5))";
+const CA_MODE_COLORS = {
+  cool: "var(--state-climate-cool-color, #2b9af3)",
+  heat: "var(--state-climate-heat-color, #ff8100)",
+  heat_cool: "var(--state-climate-heat-cool-color, #008000)",
+  auto: "var(--state-climate-auto-color, #008000)",
+  dry: "var(--state-climate-dry-color, #efbd07)",
+  fan_only: "var(--state-climate-fan_only-color, #8a8a8a)",
+};
+const CA_MODE_ICONS = {
+  off: "mdi:power",
+  cool: "mdi:snowflake",
+  heat: "mdi:fire",
+  heat_cool: "mdi:sun-snowflake-variant",
+  auto: "mdi:thermostat-auto",
+  dry: "mdi:water-percent",
+  fan_only: "mdi:fan",
+};
+
+// Air quality from PM2.5 (µg/m³), or from an air quality index: HomeKit's 1–5 scale, or a US AQI above 5.
+const CA_AQ = [
+  { key: "good", color: "var(--success-color, #43a047)" },
+  { key: "moderate", color: "#f9a825" },
+  { key: "unhealthy", color: "#fb8c00" },
+  { key: "bad", color: "var(--error-color, #db4437)" },
+];
+function caAirQuality(pm25, aqi) {
+  let i = null;
+  if (pm25 != null) i = pm25 <= 12 ? 0 : pm25 <= 35 ? 1 : pm25 <= 55 ? 2 : 3;
+  else if (aqi != null) {
+    if (aqi <= 5) i = aqi <= 2 ? 0 : aqi === 3 ? 1 : aqi === 4 ? 2 : 3;
+    else i = aqi <= 50 ? 0 : aqi <= 100 ? 1 : aqi <= 150 ? 2 : 3;
+  }
+  return i == null ? null : CA_AQ[i];
+}
+
+// Icon of a fan or purifier preset, from its name.
+const CA_PRESET_ICON = (p) => {
+  const s = String(p).toLowerCase();
+  if (/auto/.test(s)) return "mdi:fan-auto";
+  if (/sleep|night|silent|nuit|quiet/.test(s)) return "mdi:power-sleep";
+  if (/fav/.test(s)) return "mdi:heart-outline";
+  if (/manual|manuel/.test(s)) return "mdi:hand-back-right-outline";
+  if (/turbo|boost|max/.test(s)) return "mdi:fan-plus";
+  if (/natur/.test(s)) return "mdi:leaf";
+  if (/straight|direct|standard|normal/.test(s)) return "mdi:weather-windy";
+  return null;
+};
+
+// Seconds per turn of the blades: slow at the lowest speed, fast at full speed.
+const caSpin = (pct) => (1.8 - 1.5 * Math.max(0, Math.min(100, pct ?? 50)) / 100).toFixed(2);
+
+// ── Device discovery ─────────────────────────────────────────────────────────
+// Feature flags (homeassistant.components.fan / climate).
+const CA_FAN_SET_SPEED = 1;
+const CA_FAN_OSCILLATE = 2;
+const CA_FAN_PRESET = 8;
+const CA_CLIMATE_TARGET = 1;
+const CA_CLIMATE_FAN_MODE = 8;
+const CA_CLIMATE_PRESET = 16;
+const CA_CLIMATE_SWING = 32;
+
+const caDc = (dc) => (st) => st.attributes.device_class === dc;
+
+// Entities a device may have next to its fan or climate entity. Each role is looked up by its registry
+// translation_key, then by the entity_id (English and French slugs), then by its attributes, so that it works
+// with Xiaomi Home, Xiaomi Miio, HomeKit, Matter or Midea entities alike.
+const CA_ROLES = {
+  temperature: { domain: "sensor", test: caDc("temperature") },
+  humidity: { domain: "sensor", test: caDc("humidity") },
+  pm25: { domain: "sensor", test: caDc("pm25") },
+  pm10: { domain: "sensor", test: caDc("pm10") },
+  aqi: { domain: "sensor", test: caDc("aqi") },
+  filter: { domain: "sensor", keys: ["filter_life", "filter_life_level", "filter_life_remaining"], id: /filt(er|re).*(life|lifetime|level|remaining|duree|restant)/ },
+  filter_hours: { domain: "sensor", keys: ["filter_hours_used", "filter_use"], id: /filt(er|re).*(used|hours|heures|utilis)/ },
+  status: { domain: "sensor", keys: ["air_purifier_status"], id: /(purifier_status|purificateur.*statut)/ },
+  mode: { domain: "select", keys: ["air_purifier_mode"], id: /(purifier_mode|_mode)$/ },
+  child_lock: { domain: "switch", keys: ["child_lock"], id: /(child_lock|physical_control|securite_enfant|verrouillage)/ },
+  buzzer: { domain: "switch", keys: ["buzzer", "alarm"], id: /(buzzer|alarm|sound|_son_|_son$|bip)/ },
+  light: { domain: "light", id: /(indicator|_led|voyant|display)/ },
+  brightness: { domain: "select", id: /(brightness|luminosit)/ },
+  favorite: { domain: "number", keys: ["favorite_level"], id: /favorite/ },
+  angle: { domain: ["number", "select"], id: /(angle|swing_included)/ },
+  timer: { domain: "number", id: /(countdown|delay_time|off_delay|timer|minuterie|power_off_time)/ },
+  rotate_left: { domain: "button", id: /(turn_left|rotate_left|tourner_a_gauche)/ },
+  rotate_right: { domain: "button", id: /(turn_right|rotate_right|tourner_a_droite)/ },
+  anion: { domain: "switch", id: /(anion|ioni)/ },
+  indoor_temp: { domain: "sensor", id: /(indoor_temperature|temperature_interieure)$/ },
+  outdoor_temp: { domain: "sensor", id: /(outdoor_temperature|temperature_exterieure)(_\d+)?$/ },
+  power: {
+    domain: "sensor",
+    id: /(real_time_power|current_power|puissance_instantanee)/,
+    test: (st, id) => st.attributes.device_class === "power" && !/compressor|compresseur/.test(id),
+  },
+  filter_alert: { domain: "binary_sensor", id: /(dust|filter|filtre)/ },
+  compressor: { domain: "sensor", id: /(?<!target_)(compressor_frequency|frequence_compresseur)$/ },
+};
+
+// Registry entries grouped by device, built once per `hass.entities` object (it only changes with the registry).
+const caRegistryIndex = new WeakMap();
+function caByDevice(reg) {
+  let index = caRegistryIndex.get(reg);
+  if (!index) {
+    index = new Map();
+    for (const e of Object.values(reg)) {
+      if (!e.device_id || e.hidden) continue;
+      if (!index.has(e.device_id)) index.set(e.device_id, []);
+      index.get(e.device_id).push(e);
+    }
+    caRegistryIndex.set(reg, index);
+  }
+  return index;
+}
+
+function caDeviceEntities(hass, deviceId) {
+  if (!hass?.entities || !deviceId) return [];
+  return (caByDevice(hass.entities).get(deviceId) || []).filter((e) => hass.states[e.entity_id]);
+}
+
+function caFindRole(hass, list, role) {
+  const m = CA_ROLES[role];
+  const domains = [].concat(m.domain);
+  const inDomain = list.filter((e) => domains.includes(e.entity_id.split(".")[0]));
+  let hit = m.keys && inDomain.find((e) => m.keys.includes(e.translation_key));
+  if (!hit && m.id) hit = inDomain.find((e) => m.id.test(e.entity_id));
+  if (!hit && m.test) hit = inDomain.find((e) => m.test(hass.states[e.entity_id], e.entity_id));
+  return hit?.entity_id;
+}
+
+const caDeviceOf = (hass, id) => hass?.entities?.[id]?.device_id;
+
+function caAreaName(hass, id) {
+  const e = hass.entities?.[id];
+  const aid = e?.area_id || (e?.device_id && hass.devices?.[e.device_id]?.area_id);
+  return aid ? hass.areas?.[aid]?.name || "" : "";
+}
+
+function caDeviceName(hass, id) {
+  const dev = hass.devices?.[caDeviceOf(hass, id)];
+  return String(dev?.name_by_user || dev?.name || "").trim();
+}
+
+// The kind of device a fan or climate entity stands for, or null when the cards do not handle it.
+// A climate entity is an air conditioner when it can cool, dry or only blow (a heat-only thermostat is not).
+// A fan entity is an air purifier when its name says so or its device measures particles or has a filter.
+const CA_PURIFIER_NAME = /purif|air_?cleaner|air_?filter|epurateur/i;
+function caKindOf(hass, id) {
+  const st = hass?.states?.[id];
+  if (!st) return null;
+  const domain = id.split(".")[0];
+  if (domain === "climate") {
+    const modes = st.attributes.hvac_modes || [];
+    return modes.some((m) => m === "cool" || m === "dry" || m === "fan_only") ? "aircon" : null;
+  }
+  if (domain !== "fan") return null;
+  const dev = hass.devices?.[caDeviceOf(hass, id)];
+  const names = [id, st.attributes.friendly_name, dev?.name, dev?.name_by_user, dev?.model].filter(Boolean).join(" ");
+  if (CA_PURIFIER_NAME.test(names)) return "purifier";
+  const list = caDeviceEntities(hass, caDeviceOf(hass, id));
+  if (caFindRole(hass, list, "pm25") || caFindRole(hass, list, "aqi") || caFindRole(hass, list, "filter")) return "purifier";
+  return "fan";
+}
+
+// Every entity of a kind, sorted by name; hidden entities and configuration entities are left out.
+function caFindEntities(hass, kind) {
+  if (!hass?.states) return [];
+  const domain = kind === "aircon" ? "climate" : "fan";
+  return Object.keys(hass.states)
+    .filter((id) => id.startsWith(`${domain}.`))
+    .filter((id) => {
+      const e = hass.entities?.[id];
+      return !e?.hidden && !e?.entity_category && caKindOf(hass, id) === kind;
+    })
+    .sort((a, b) => caName(hass, a).localeCompare(caName(hass, b)));
+}
+
+// The name shown for a device: its device name, else the entity's, without the trailing " Fan" Xiaomi Home adds.
+function caName(hass, id) {
+  const st = hass.states[id];
+  const dev = caDeviceName(hass, id);
+  if (dev) return dev;
+  return String(st?.attributes.friendly_name || id)
+    .replace(/\s+(fan|air purifier)$/i, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+// ── Base card ────────────────────────────────────────────────────────────────
+// Subclasses set `static kind` and implement:
+//   _roles()              roles to look for on the device
+//   _model(r)             { state, color, running, statusText, sub, ... } from the resolved entities
+//   _art(m)               the illustration (SVG), animated with CSS while `running`
+//   _heroInfo(m)          what sits next to the illustration
+//   _controls(m)          the control sections below
+//   _miniInfo(m)          the lines of the mini card
+//   _miniButtons(m)       extra round buttons of the mini card (the power button is added after them)
+// What every card of the bundle shares: grid size, language and labels.
+class CaElement extends HTMLElement {
+  getGridOptions() {
+    return { columns: 12, min_columns: 6 };
+  }
+
+  _lang() {
+    return caLang(this._config, this._hass);
+  }
+
+  _t(k, vars) {
+    return caT(this._lang(), k, vars);
+  }
+}
+
+class CaCard extends CaElement {
+  static get kind() {
+    return "fan";
+  }
+
+  static get defaults() {
+    return { show_controls: true, show_sensors: true, show_alerts: true };
+  }
+
+  static getConfigElement() {
+    // biome-ignore lint/complexity/noThisInStatic: each card class has its own tag, set by caRegister
+    return document.createElement(`${this.tag}-editor`);
+  }
+
+  static getStubConfig(hass) {
+    // biome-ignore lint/complexity/noThisInStatic: subclasses override static kind
+    const id = caFindEntities(hass, this.kind)[0];
+    return id ? { entity: id } : {};
+  }
+
+  setConfig(config) {
+    if (!config) throw new Error("Invalid configuration");
+    this._config = { ...this.constructor.defaults, ...config };
+    if (!this.shadowRoot) {
+      this.attachShadow({ mode: "open" });
+      this.shadowRoot.addEventListener("click", (ev) => this._onClick(ev));
+      this.shadowRoot.addEventListener("change", (ev) => this._onChange(ev));
+    }
+    this._sig = null;
+    this._update();
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    this._update();
+  }
+
+  get hass() {
+    return this._hass;
+  }
+
+  disconnectedCallback() {
+    clearTimeout(this._tempTimer);
+  }
+
+  getCardSize() {
+    return 5;
+  }
+
+  _entity() {
+    return this._config.entity || caFindEntities(this._hass, this.constructor.kind)[0];
+  }
+
+  _roles() {
+    return [];
+  }
+
+  _resolve() {
+    const hass = this._hass;
+    const id = this._entity();
+    const deviceId = caDeviceOf(hass, id);
+    const list = caDeviceEntities(hass, deviceId).filter((e) => e.entity_id !== id);
+    const over = this._config.entities || {};
+    const ent = { main: id };
+    for (const role of this._roles()) ent[role] = over[role] || caFindRole(hass, list, role);
+    const used = new Set(Object.values(ent));
+    return { id, deviceId, list, ent, used };
+  }
+
+  _st(id) {
+    return id ? this._hass.states[id] : undefined;
+  }
+
+  _val(id) {
+    return this._st(id)?.state;
+  }
+
+  _avail(id) {
+    return !caUnavailable(this._st(id));
+  }
+
+  _num(id) {
+    return caNum(this._st(id));
+  }
+
+  // State or attribute value as Home Assistant shows it, or humanized when it has no translation.
+  _fmtState(id, value) {
+    const st = this._st(id);
+    if (!st) return caHumanize(value);
+    const v = value ?? st.state;
+    const out = this._hass.formatEntityState?.(st, v);
+    return out && out !== v ? out : caHumanize(v);
+  }
+
+  _fmtAttr(id, attr, value) {
+    const st = this._st(id);
+    const out = st && this._hass.formatEntityAttributeValue?.(st, attr, value);
+    return out && out !== value ? out : caHumanize(value);
+  }
+
+  _fmtSensor(id) {
+    const st = this._st(id);
+    if (caUnavailable(st)) return null;
+    const v = Number(st.state);
+    if (!Number.isFinite(v)) return this._fmtState(id);
+    const unit = st.attributes.unit_of_measurement || "";
+    return `${caFmtNum(this._lang(), v)}${unit ? (unit === "%" ? " %" : ` ${unit}`) : ""}`;
+  }
+
+  // An entity's name without the device name in front ("Air conditioner Anion" → "Anion").
+  _label(id) {
+    const st = this._st(id);
+    let name = st?.attributes.friendly_name || id;
+    const dev = caDeviceName(this._hass, id) || caName(this._hass, this._r?.id || "");
+    if (dev && name.toLowerCase().startsWith(dev.toLowerCase())) name = name.slice(dev.length);
+    name = name.replace(/^[\s*·-]+/, "").replace(/\s{2,}/g, " ").trim() || st?.attributes.friendly_name || id;
+    return name.charAt(0).toUpperCase() + name.slice(1);
+  }
+
+  _update() {
+    if (!this._config || !this._hass || !this.shadowRoot) return;
+    const r = this._resolve();
+    const hass = this._hass;
+    const ids = [r.id, ...Object.values(r.ent), ...(this._extraIds?.(r) || [])];
+    const states = ids.map((id) => {
+      const s = id && hass.states[id];
+      return s ? [id, s.state, s.attributes] : null;
+    });
+    const sig = JSON.stringify([this._lang(), this._zoomed, this._pendingTemp, states]);
+    if (sig === this._sig) return;
+    // No rebuild while a dropdown is open or a slider is held in the card.
+    const active = this.shadowRoot.activeElement;
+    if (active && (active.tagName === "SELECT" || active.tagName === "INPUT")) return;
+    this._sig = sig;
+    this._r = r;
+    this._render(r);
+  }
+
+  // Overridden by the mini cards.
+  _compact() {
+    return false;
+  }
+
+  _zoomButton() {
+    return "";
+  }
+
+  _render(r) {
+    const c = this._config;
+    const kind = this.constructor.kind;
+    const st = this._st(r.id);
+    const icon = c.icon || CA_KIND_ICONS[kind];
+    if (!st) {
+      this.shadowRoot.innerHTML = `${this._styles()}<ha-card><div class="empty"><ha-icon icon="${caEsc(icon)}"></ha-icon>${caEsc(
+        c.entity ? `${this._t("no_device")} (${c.entity})` : this._t("no_device"),
+      )}</div></ha-card>`;
+      return;
+    }
+    const m = this._model(r);
+    m.online = !caUnavailable(st);
+    if (!m.online) {
+      m.state = "unavailable";
+      m.running = false;
+      m.color = CA_IDLE;
+      m.statusText = this._t("st_unavailable");
+    }
+    m.name = c.name || caName(this._hass, r.id) || this._t(kind);
+    m.icon = icon;
+    m.chips = m.chips || [];
+    if (!m.online) m.chips.push(`<span class="chip"><ha-icon icon="mdi:cloud-off-outline"></ha-icon>${this._t("offline")}</span>`);
+    m.art = c.icon ? `<div class="iconart"><ha-icon icon="${caEsc(icon)}"></ha-icon></div>` : this._art(m);
+    m.powerBtn = m.online
+      ? `<button class="power${m.running ? " on" : ""}" data-action="power" title="${caEsc(this._t("power"))}" aria-label="${caEsc(this._t("power"))}"><ha-icon icon="mdi:power"></ha-icon></button>`
+      : "";
+    m.badge = `<div class="badge"><ha-icon icon="${caEsc(icon)}"></ha-icon></div>`;
+
+    if (this._compact()) {
+      this.shadowRoot.innerHTML = this._miniHtml(m);
+      return;
+    }
+    const sub = [caAreaName(this._hass, r.id), m.sub].filter(Boolean).join(" · ");
+    this.shadowRoot.innerHTML =
+      `${this._styles(m.color)}<ha-card>` +
+      `<div class="header">${m.badge}<div class="titles"><div class="name">${caEsc(m.name)}</div>${sub ? `<div class="sub">${caEsc(sub)}</div>` : ""}</div>` +
+      `<span class="st"><span class="dot"></span>${caEsc(m.statusText)}</span>${m.powerBtn}${this._zoomButton()}</div>` +
+      `<div class="hero">${this._picture(m)}<div class="info">${this._heroInfo(m)}${m.chips.length ? `<div class="chips">${m.chips.join("")}</div>` : ""}</div></div>` +
+      (c.show_controls && m.online ? this._controls(m) : "") +
+      "</ha-card>";
+  }
+
+  // The illustration variant: `illustration` from the config, or the one `guess` reads from the device model and name.
+  _variant(guess) {
+    const v = this._config.illustration;
+    if (v && v !== "auto") return v;
+    const id = this._r.id;
+    const dev = this._hass.devices?.[caDeviceOf(this._hass, id)];
+    return guess([dev?.model, dev?.name, dev?.name_by_user, id, this._st(id)?.attributes.friendly_name].filter(Boolean).join(" "));
+  }
+
+  _picture(m) {
+    const cls = ["picture", `k-${this.constructor.kind}`, `st-${m.state}`, m.running ? "running" : "", ...(m.artClasses || [])];
+    const style = m.artStyle ? ` style="${m.artStyle}"` : "";
+    return `<div class="${cls.filter(Boolean).join(" ")}"${style}>${m.art}</div>`;
+  }
+
+  // A chip with an icon and a value; `cls` tints it (warn, alert).
+  _chip(icon, text, cls = "", title = "") {
+    return `<span class="chip ${cls}"${title ? ` title="${caEsc(title)}"` : ""}><ha-icon icon="${icon}"></ha-icon>${caEsc(text)}</span>`;
+  }
+
+  // The measurements of the device as chips (temperature, humidity, …), each one only if found.
+  _sensorChips(ent, roles) {
+    const icons = { temperature: "mdi:thermometer", humidity: "mdi:water-percent", pm10: "mdi:blur", outdoor_temp: "mdi:home-thermometer-outline", power: "mdi:flash" };
+    const out = [];
+    for (const role of roles) {
+      const v = this._fmtSensor(ent[role]);
+      if (v == null) continue;
+      const prefix = role === "pm10" ? "PM10 " : role === "outdoor_temp" ? `${this._t("outdoor")} ` : "";
+      out.push(this._chip(icons[role], `${prefix}${v}`, "", this._label(ent[role])));
+    }
+    return out;
+  }
+
+  // ── Controls ──
+  _section(title, body) {
+    return body ? `<div class="section">${title ? `<div class="section-title">${caEsc(title)}</div>` : ""}${body}</div>` : "";
+  }
+
+  // Segmented buttons, one per option; `action` gets the option in data-value.
+  _segments(action, options, current, label, icon) {
+    if (!options || options.length < 2) return "";
+    // Many options (an air conditioner's modes): only the selected one keeps its label, the others show their icon.
+    const many = options.length > 4;
+    return `<div class="segments" role="group">${options
+      .map((o) => {
+        const ic = icon?.(o);
+        const on = o === current;
+        const text = caEsc(label(o));
+        const short = many && !on && ic;
+        return `<button class="seg${on ? " on" : ""}${short ? " short" : ""}" data-action="${action}" data-value="${caEsc(o)}" aria-pressed="${on}" title="${text}"${short ? ` aria-label="${text}"` : ""}>${ic ? `<ha-icon icon="${ic}"></ha-icon>` : ""}${short ? "" : `<span>${text}</span>`}</button>`;
+      })
+      .join("")}</div>`;
+  }
+
+  // A speed slider for the fan or purifier entity.
+  _speedSlider(id) {
+    const st = this._st(id);
+    const pct = st.state === "on" ? Number(st.attributes.percentage ?? 0) : 0;
+    const step = Math.max(1, Math.round(Number(st.attributes.percentage_step) || 1));
+    return (
+      `<div class="slider"><ha-icon icon="mdi:speedometer"></ha-icon><span class="sl-label">${caEsc(this._t("speed"))}</span>` +
+      `<input type="range" min="${step}" max="100" step="${step}" value="${Math.max(step, pct)}" data-range="percentage" aria-label="${caEsc(this._t("speed"))}" style="--p:${pct}%">` +
+      `<span class="v">${st.state === "on" ? `${Math.round(pct)} %` : "—"}</span></div>`
+    );
+  }
+
+  // A number entity as a dropdown when it has few steps (timer, angle, level), as a slider otherwise.
+  _numberControl(id, label, icon) {
+    const st = this._st(id);
+    if (!st || caUnavailable(st)) return "";
+    if (id.startsWith("select.")) return this._selectEntity(id, label);
+    const a = st.attributes;
+    const min = Number(a.min ?? 0);
+    const max = Number(a.max ?? 100);
+    const step = Number(a.step ?? 1) || 1;
+    const unit = a.unit_of_measurement || "";
+    const v = Number(st.state);
+    const count = Math.floor((max - min) / step) + 1;
+    if (count <= 16) {
+      const opts = Array.from({ length: count }, (_, i) => +(min + i * step).toFixed(4));
+      if (!opts.includes(v)) opts.push(v);
+      opts.sort((x, y) => x - y);
+      const text = (o) => (o === 0 && /timer|countdown|delay|minuterie/.test(id) ? this._t("timer_off") : `${caFmtNum(this._lang(), o)}${unit ? ` ${unit}` : ""}`);
+      return `<label class="field"><span>${caEsc(label)}</span><select data-number="${caEsc(id)}">${opts
+        .map((o) => `<option value="${o}"${o === v ? " selected" : ""}>${caEsc(text(o))}</option>`)
+        .join("")}</select></label>`;
+    }
+    return (
+      `<div class="slider"><ha-icon icon="${icon || "mdi:tune-variant"}"></ha-icon><span class="sl-label">${caEsc(label)}</span>` +
+      `<input type="range" min="${min}" max="${max}" step="${step}" value="${v}" data-number="${caEsc(id)}" aria-label="${caEsc(label)}" style="--p:${((v - min) / (max - min || 1)) * 100}%">` +
+      `<span class="v">${caFmtNum(this._lang(), v)}${unit ? ` ${unit}` : ""}</span></div>`
+    );
+  }
+
+  _selectEntity(id, label) {
+    const st = this._st(id);
+    if (!st || caUnavailable(st)) return "";
+    const opts = (st.attributes.options || []).map((o) => `<option value="${caEsc(o)}"${o === st.state ? " selected" : ""}>${caEsc(this._fmtState(id, o))}</option>`).join("");
+    return `<label class="field"><span>${caEsc(label)}</span><select data-select="${caEsc(id)}">${opts}</select></label>`;
+  }
+
+  // A select on an attribute of the main entity (fan_mode, swing_mode, preset_mode).
+  _selectAttr(attr, listAttr, service, label) {
+    const id = this._r.id;
+    const st = this._st(id);
+    const list = st.attributes[listAttr];
+    if (!list?.length) return "";
+    const cur = st.attributes[attr];
+    const opts = list.map((o) => `<option value="${caEsc(o)}"${o === cur ? " selected" : ""}>${caEsc(this._fmtAttr(id, attr, o))}</option>`).join("");
+    return `<label class="field"><span>${caEsc(label)}</span><select data-attr-service="${service}" data-attr="${attr}">${opts}</select></label>`;
+  }
+
+  // A toggle chip for a switch or light entity, or for the oscillation (`action`).
+  _toggle(id, label, icon, opts = {}) {
+    if (!opts.action && (!id || !this._st(id))) return "";
+    const ok = opts.action ? true : this._avail(id);
+    const on = opts.on ?? this._val(id) === "on";
+    const data = opts.action ? `data-action="${opts.action}"` : `data-toggle="${caEsc(id)}"`;
+    return `<button class="toggle${on ? " on" : ""}" ${data}${ok ? "" : " disabled"} aria-pressed="${on}"><ha-icon icon="${icon}"></ha-icon>${caEsc(label)}</button>`;
+  }
+
+  _toggles(items) {
+    const html = items.filter(Boolean).join("");
+    return html ? `<div class="toggles">${html}</div>` : "";
+  }
+
+  // ── Actions ──
+  _call(domain, service, data) {
+    return this._hass.callService(domain, service, data);
+  }
+
+  _onClick(ev) {
+    const el = ev.composedPath().find((n) => n.dataset && (n.dataset.action || n.dataset.toggle || n.dataset.press));
+    if (!el || el.disabled) return;
+    const d = el.dataset;
+    if (d.toggle) {
+      this._call(d.toggle.split(".")[0], "toggle", { entity_id: d.toggle });
+      return;
+    }
+    if (d.press) {
+      this._call("button", "press", { entity_id: d.press });
+      return;
+    }
+    if (d.action === "zoom") {
+      this._toggleZoom(ev);
+      return;
+    }
+    this._action(d.action, d.value, ev);
+  }
+
+  // Device-specific actions; `power` is shared.
+  _action(action) {
+    if (action === "power") {
+      const id = this._r.id;
+      const domain = id.split(".")[0];
+      this._call(domain, this._val(id) === "off" ? "turn_on" : "turn_off", { entity_id: id });
+    }
+  }
+
+  _onChange(ev) {
+    const el = ev.target;
+    const d = el?.dataset;
+    if (!d) return;
+    const id = this._r.id;
+    if (d.range === "percentage") this._call("fan", "set_percentage", { entity_id: id, percentage: Number(el.value) });
+    else if (d.number) this._call("number", "set_value", { entity_id: d.number, value: Number(el.value) });
+    else if (d.select) this._call("select", "select_option", { entity_id: d.select, option: el.value });
+    else if (d.attrService) this._call(id.split(".")[0], d.attrService, { entity_id: id, [d.attr]: el.value });
+    else return;
+    el.blur();
+  }
+
+  // ── Styles ──
+  _styles(color) {
+    return `<style>${CA_STYLES}${this.constructor.styles || ""}</style><style>:host{--ca-color:${color || CA_IDLE};}</style>`;
+  }
+}
+
+const CA_KIND_ICONS = { purifier: "mdi:air-purifier", fan: "mdi:fan", aircon: "mdi:air-conditioner" };
+
+// ── Mini cards ───────────────────────────────────────────────────────────────
+// A mini card is the full card drawn compact, like the ha-home-connect-card and ha-roborock-card mini cards: its
+// detail button (top right, `zoom: false` removes it) switches it to the full card and back, and a click anywhere
+// else on the page folds it again.
+const caInDialog = (ev) => ev.composedPath().some((n) => ["ha-more-info-dialog", "ha-dialog", "dialog"].includes(n.localName));
+
+const caMini = (Base) =>
+  class extends Base {
+    static get mini() {
+      return true;
+    }
+
+    constructor() {
+      super();
+      this._onUnzoom = (ev) => {
+        if (this._zoomed && !ev.composedPath().includes(this) && !caInDialog(ev)) this._setZoom(false);
+      };
+    }
+
+    connectedCallback() {
+      super.connectedCallback?.();
+      document.addEventListener("click", this._onUnzoom, true);
+    }
+
+    disconnectedCallback() {
+      super.disconnectedCallback();
+      document.removeEventListener("click", this._onUnzoom, true);
+    }
+
+    getCardSize() {
+      return this._zoomed ? super.getCardSize() : 2;
+    }
+
+    getGridOptions() {
+      return this._zoomed ? super.getGridOptions() : { columns: 6, min_columns: 6 };
+    }
+
+    _compact() {
+      return !this._zoomed;
+    }
+
+    _zoomButton() {
+      if (this._config.zoom === false) return "";
+      const z = !!this._zoomed;
+      const label = caEsc(this._t(z ? "zoom_out" : "zoom_in"));
+      return `<button class="zoom" data-action="zoom" title="${label}" aria-label="${label}"><ha-icon icon="${z ? "mdi:arrow-collapse" : "mdi:arrow-expand"}"></ha-icon></button>`;
+    }
+
+    _setZoom(on) {
+      this._zoomed = on;
+      this._update();
+    }
+
+    // From the keyboard (Enter / Space: no click count), the focus follows to the button that replaced this one.
+    _toggleZoom(ev) {
+      this._setZoom(!this._zoomed);
+      if (ev.detail === 0) this.shadowRoot.querySelector(".zoom")?.focus();
+    }
+
+    _miniHtml(m) {
+      const btns = [...(m.online && this._config.show_controls ? this._miniButtons(m) : []), m.powerBtn].filter(Boolean);
+      const chips = m.chips.filter((x) => x.includes("chip warn") || x.includes("chip alert") || !m.online);
+      return (
+        `${this._styles(m.color)}<ha-card class="mini">` +
+        `<div class="header">${m.badge}<div class="titles"><div class="name">${caEsc(m.name)}</div></div>` +
+        `<span class="st"><span class="dot"></span>${caEsc(m.statusText)}</span>${this._zoomButton()}</div>` +
+        `<div class="content">${this._picture(m)}<div class="info">${this._miniInfo(m)}${chips.length ? `<div class="chips">${chips.join("")}</div>` : ""}</div>` +
+        `${btns.length ? `<div class="mcontrols">${btns.join("")}</div>` : ""}</div></ha-card>`
+      );
+    }
+  };
+
+// A mini bar with its value: speed, filter life.
+const caBar = (pct, value, icon) =>
+  `<div class="mbar">${icon ? `<ha-icon icon="${icon}"></ha-icon>` : ""}<div class="bar"><div class="fill" style="width:${Math.max(0, Math.min(100, pct))}%"></div></div><span class="v">${caEsc(value)}</span></div>`;
+
+const caLine = (icon, text) => `<div class="line"><ha-icon icon="${icon}"></ha-icon><span>${caEsc(text)}</span></div>`;
+
+// ── Styles ───────────────────────────────────────────────────────────────────
+const CA_STYLES = `
+  :host { display: block; height: 100%; }
+  ha-card { height: 100%; box-sizing: border-box; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+  .empty { display: flex; align-items: center; gap: 10px; color: var(--secondary-text-color); }
+  .header { display: flex; align-items: center; gap: 10px; }
+  .badge { flex: none; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center;
+           background: color-mix(in srgb, var(--ca-color) 16%, transparent); color: var(--ca-color); transition: background .4s, color .4s; }
+  .badge ha-icon { --mdc-icon-size: 22px; }
+  .titles { flex: 1; min-width: 0; }
+  .name { font-size: 16px; font-weight: 500; line-height: 1.25; color: var(--primary-text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sub { font-size: 12px; color: var(--secondary-text-color); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .st { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; padding: 1px 8px; border-radius: 12px; font-size: 11px; font-weight: 500;
+        white-space: nowrap; background: color-mix(in srgb, var(--ca-color) 15%, transparent); color: var(--ca-color); }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ca-color); }
+  ha-card:has(.running) .dot { animation: ca-blink 1.6s ease-in-out infinite; }
+  button { font: inherit; cursor: pointer; border: none; }
+  button:disabled { cursor: default; opacity: .5; }
+  .power { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+           background: var(--secondary-background-color, rgba(128,128,128,.12)); color: var(--secondary-text-color); }
+  .power.on { background: color-mix(in srgb, var(--ca-color) 18%, transparent); color: var(--ca-color); }
+  .zoom { all: unset; flex-shrink: 0; cursor: pointer; width: 24px; height: 24px; margin: -4px -4px -4px 0; border-radius: 50%;
+          display: grid; place-items: center; color: var(--secondary-text-color); }
+  .zoom ha-icon { --mdc-icon-size: 16px; }
+  .zoom:hover { background: color-mix(in srgb, var(--secondary-text-color) 16%, transparent); color: var(--primary-text-color); }
+  .zoom:focus-visible { outline: 2px solid var(--primary-color, #03a9f4); outline-offset: 1px; }
+
+  .hero { display: flex; align-items: center; gap: 14px; }
+  .picture { position: relative; width: 76px; height: 88px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  .picture svg { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 3px 6px rgba(0,0,0,.18)); }
+  .iconart { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center;
+             background: color-mix(in srgb, var(--ca-color) 15%, transparent); color: var(--ca-color); }
+  .iconart ha-icon { --mdc-icon-size: 32px; }
+  .running .iconart ha-icon { animation: ca-breathe 2.4s ease-in-out infinite; }
+  .info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+  .big { display: flex; align-items: baseline; gap: 8px; min-width: 0; flex-wrap: wrap; }
+  .big .val { font-size: 30px; font-weight: 400; line-height: 1.1; color: var(--primary-text-color); white-space: nowrap; }
+  .big .val small { font-size: 15px; color: var(--secondary-text-color); }
+  .big .lbl { font-size: 13px; font-weight: 500; color: var(--ca-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .big .arrow { font-size: 14px; color: var(--secondary-text-color); white-space: nowrap; }
+  .state-big { font-size: 22px; font-weight: 400; line-height: 1.2; color: var(--ca-color); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 500; padding: 1px 8px 1px 5px; border-radius: 12px;
+          background: var(--secondary-background-color, rgba(128,128,128,.12)); color: var(--secondary-text-color); white-space: nowrap; }
+  .chip ha-icon { --mdc-icon-size: 13px; }
+  .chip.warn { background: color-mix(in srgb, var(--warning-color, #ffa600) 15%, transparent); color: var(--warning-color, #ffa600); }
+  .chip.alert { background: color-mix(in srgb, var(--error-color, #db4437) 15%, transparent); color: var(--error-color, #db4437); }
+  .chip.tint { --k: var(--ca-color); background: color-mix(in srgb, var(--k) 15%, transparent); color: var(--k); }
+  .bar { height: 4px; border-radius: 3px; background: var(--secondary-background-color, rgba(128,128,128,.15)); overflow: hidden; flex: 1; }
+  .fill { height: 100%; border-radius: 3px; background: var(--ca-color); transition: width .6s ease; }
+
+  .section { display: flex; flex-direction: column; gap: 6px; }
+  .section-title { font-size: 12px; font-weight: 500; color: var(--secondary-text-color); text-transform: uppercase; letter-spacing: .04em; }
+  .segments { display: flex; gap: 4px; padding: 3px; border-radius: 12px; background: var(--secondary-background-color, rgba(128,128,128,.1)); }
+  .seg { flex: 1; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 6px 4px; border-radius: 9px;
+         font-size: 12px; font-weight: 500; background: none; color: var(--secondary-text-color); transition: background .2s, color .2s; }
+  .seg span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .seg ha-icon { --mdc-icon-size: 16px; flex-shrink: 0; }
+  .seg.short { flex: 0 0 auto; padding: 6px 10px; }
+  .seg.on { background: var(--card-background-color, #fff); color: var(--ca-color); box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+  .seg:focus-visible, .toggle:focus-visible, .btn:focus-visible, .round:focus-visible { outline: 2px solid var(--primary-color, #03a9f4); outline-offset: 1px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 6px; }
+  .field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .field > span { font-size: 11px; color: var(--secondary-text-color); }
+  select { font: inherit; font-size: 13px; color: var(--primary-text-color); padding: 7px 28px 7px 10px; border-radius: 10px; width: 100%;
+           border: 1px solid var(--divider-color, rgba(128,128,128,.25)); appearance: none; -webkit-appearance: none; cursor: pointer;
+           background: var(--secondary-background-color, rgba(128,128,128,.1)) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23888' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E") no-repeat right 6px center / 20px; }
+  .slider { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--secondary-text-color); }
+  .slider ha-icon { --mdc-icon-size: 18px; flex-shrink: 0; }
+  .slider .sl-label { flex-shrink: 0; min-width: 52px; }
+  .slider .v { min-width: 44px; text-align: right; font-weight: 500; color: var(--primary-text-color); font-variant-numeric: tabular-nums; }
+  input[type=range] { flex: 1; min-width: 0; height: 22px; margin: 0; background: none; appearance: none; -webkit-appearance: none; cursor: pointer; }
+  input[type=range]::-webkit-slider-runnable-track { height: 6px; border-radius: 3px;
+    background: linear-gradient(to right, var(--ca-color) var(--p, 0%), var(--secondary-background-color, rgba(128,128,128,.2)) var(--p, 0%)); }
+  input[type=range]::-moz-range-track { height: 6px; border-radius: 3px; background: var(--secondary-background-color, rgba(128,128,128,.2)); }
+  input[type=range]::-moz-range-progress { height: 6px; border-radius: 3px; background: var(--ca-color); }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; margin-top: -6px; border-radius: 50%;
+    background: var(--card-background-color, #fff); border: 2px solid var(--ca-color); box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+  input[type=range]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--card-background-color, #fff); border: 2px solid var(--ca-color); }
+  input[type=range]:focus-visible { outline: 2px solid var(--primary-color, #03a9f4); outline-offset: 2px; border-radius: 4px; }
+  .toggles { display: flex; flex-wrap: wrap; gap: 6px; }
+  .toggle { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 500; padding: 4px 9px 4px 6px; border-radius: 12px;
+            background: var(--secondary-background-color, rgba(128,128,128,.12)); color: var(--secondary-text-color); }
+  .toggle ha-icon { --mdc-icon-size: 15px; }
+  .toggle.on { background: color-mix(in srgb, var(--ca-color) 16%, transparent); color: var(--ca-color); }
+  .row { display: flex; align-items: center; gap: 8px; }
+  .row > .field { flex: 1; }
+  .round { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0;
+           background: var(--secondary-background-color, rgba(128,128,128,.12)); color: var(--primary-text-color); }
+  .round ha-icon { --mdc-icon-size: 20px; }
+  .round.on { background: color-mix(in srgb, var(--ca-color) 18%, transparent); color: var(--ca-color); }
+
+  ha-card.mini { gap: 8px; }
+  ha-card.mini .badge { width: 32px; height: 32px; }
+  ha-card.mini .badge ha-icon { --mdc-icon-size: 18px; }
+  ha-card.mini .name { font-size: 14px; }
+  .content { display: flex; align-items: center; gap: 12px; }
+  ha-card.mini .picture { width: 56px; height: 66px; }
+  .mbar { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .mbar ha-icon { --mdc-icon-size: 14px; color: var(--secondary-text-color); }
+  .mbar .v { font-weight: 500; min-width: 40px; text-align: right; color: var(--primary-text-color); font-variant-numeric: tabular-nums; }
+  .line { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--secondary-text-color); min-width: 0; }
+  .line ha-icon { --mdc-icon-size: 14px; flex-shrink: 0; }
+  .line span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .line b { color: var(--primary-text-color); font-weight: 500; }
+  .mcontrols { display: flex; gap: 6px; flex-shrink: 0; }
+  ha-card.mini .power { width: 40px; height: 40px; }
+
+  @keyframes ca-spin { to { transform: rotate(360deg); } }
+  @keyframes ca-blink { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+  @keyframes ca-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(.9); } }
+  @keyframes ca-rise { 0% { opacity: 0; transform: translateY(4px); } 30% { opacity: .9; } 100% { opacity: 0; transform: translateY(-16px); } }
+  @keyframes ca-fall { 0% { opacity: 0; transform: translateY(-4px); } 25% { opacity: .9; } 100% { opacity: 0; transform: translateY(22px); } }
+  @media (prefers-reduced-motion: reduce) {
+    .picture *, .picture, .dot, .iconart ha-icon { animation: none !important; }
+  }
+`;
+
+// ── Editor (built on Home Assistant's ha-form) ───────────────────────────────
+// Like the ha-room-card editors: every option of the card, with the language and, as YAML, the entity overrides in a
+// folded Advanced section.
+class CaCardEditor extends HTMLElement {
+  static kind = "fan";
+  static mini = false;
+
+  setConfig(config) {
+    this._config = { ...config };
+    this._render();
+  }
+
+  set hass(hass) {
+    const prev = this._hass?.language;
+    this._hass = hass;
+    if (this._form && prev === hass?.language) this._form.hass = hass;
+    else this._render();
+  }
+
+  _defaults() {
+    return {
+      show_controls: true,
+      show_sensors: true,
+      show_alerts: true,
+      ...(CA_ILLUSTRATIONS[this.constructor.kind] ? { illustration: "auto" } : {}),
+      ...(this.constructor.mini ? { zoom: true } : {}),
+    };
+  }
+
+  _helpers() {
+    return ["entity", "name", "icon", "illustration", "zoom", "language", "entities"];
+  }
+
+  _schema() {
+    const kind = this.constructor.kind;
+    const ids = caFindEntities(this._hass, kind);
+    const domain = kind === "aircon" ? "climate" : "fan";
+    const lang = caLang(this._config, this._hass);
+    const variants = CA_ILLUSTRATIONS[kind] || [];
+    return [
+      { name: "entity", selector: { entity: ids.length ? { include_entities: ids } : { domain } } },
+      { type: "grid", name: "", schema: [{ name: "name", selector: { text: {} } }, { name: "icon", selector: { icon: {} } }] },
+      ...(variants.length
+        ? [
+            {
+              name: "illustration",
+              selector: {
+                select: { mode: "dropdown", options: ["auto", ...variants].map((v) => ({ value: v, label: caT(lang, `ill_${v}`) })) },
+              },
+            },
+          ]
+        : []),
+      {
+        type: "grid",
+        name: "",
+        schema: [
+          { name: "show_controls", selector: { boolean: {} } },
+          { name: "show_sensors", selector: { boolean: {} } },
+          { name: "show_alerts", selector: { boolean: {} } },
+          ...(this.constructor.mini ? [{ name: "zoom", selector: { boolean: {} } }] : []),
+        ],
+      },
+      ...caAdvanced(caLang(this._config, this._hass), "language", "entities"),
+    ];
+  }
+
+  _render() {
+    if (!this._config || !this._hass) return;
+    if (!this._form) {
+      this._form = document.createElement("ha-form");
+      this._form.addEventListener("value-changed", (ev) => this._valueChanged(ev));
+      this.appendChild(this._form);
+    }
+    const lang = caLang(this._config, this._hass);
+    const helpers = this._helpers();
+    this._form.hass = this._hass;
+    this._form.schema = this._schema();
+    this._form.computeLabel = (s) => caT(lang, `ed_${s.name}`);
+    this._form.computeHelper = (s) => (helpers.includes(s.name) ? caEditorHelper(lang, s.name) : undefined);
+    this._form.data = { ...this._defaults(), ...this._config };
+  }
+
+  _valueChanged(ev) {
+    ev.stopPropagation();
+    const lang = caLang(this._config, this._hass);
+    this._config = caCleanConfig(ev.detail.value, this._defaults(), this._config.type);
+    if (lang !== caLang(this._config, this._hass)) this._render();
+    this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config }, bubbles: true, composed: true }));
+  }
+}
+
+// Illustration variants of each kind of device (the first is the fallback).
+const CA_ILLUSTRATIONS = { purifier: ["tower", "cylinder", "box"], aircon: ["split", "portable", "window"] };
+
+// The folded Advanced section: the language, and the other `names` edited as YAML.
+const caAdvanced = (lang, ...names) => [
+  {
+    name: "advanced",
+    type: "expandable",
+    flatten: true,
+    schema: names.map((name) =>
+      name === "language"
+        ? {
+            name,
+            selector: {
+              select: {
+                mode: "dropdown",
+                options: [
+                  { value: "", label: caT(lang, "ed_language_auto") },
+                  { value: "en", label: "English" },
+                  { value: "fr", label: "Français" },
+                ],
+              },
+            },
+          }
+        : { name, selector: { object: {} } },
+    ),
+  },
+];
+
+function caEditorHelper(lang, name) {
+  const key = `ed_${name}_helper`;
+  const txt = caT(lang, key);
+  return txt === key ? undefined : txt;
+}
+
+// Keeps the YAML short: options left empty or at their default are dropped.
+function caCleanConfig(value, defaults, type) {
+  const out = { ...value };
+  for (const k of Object.keys(out)) {
+    const v = out[k];
+    if (v === "" || v == null || (Array.isArray(v) && !v.length) || v === defaults[k]) delete out[k];
+  }
+  if (out.entities && typeof out.entities === "object") {
+    const e = Object.fromEntries(Object.entries(out.entities).filter(([, v]) => v));
+    if (Object.keys(e).length) out.entities = e;
+    else delete out.entities;
+  }
+  return type ? { type, ...out } : out;
+}
+
+// Defines a card and its editor (`<type>-editor`, a CaCardEditor for the card's kind unless `Editor` is given) and
+// lists the card in the card picker.
+function caRegister(type, cls, name, description, Editor) {
+  if (customElements.get(type)) return;
+  cls.tag = type;
+  const editor =
+    Editor ||
+    class extends CaCardEditor {
+      static kind = cls.kind;
+      static mini = !!cls.mini;
+    };
+  customElements.define(type, cls);
+  customElements.define(`${type}-editor`, editor);
+  window.customCards = window.customCards || [];
+  window.customCards.push({ type, name, description, preview: true, documentationURL: CA_REPO });
+}
+
+if (!customElements.get("climate-air-overview-card")) {
+  console.info(`%c HA-CLIMATE-AIR-CARD %c v${CA_VERSION} `, "background:#039be5;color:#fff;font-weight:700", "");
+}

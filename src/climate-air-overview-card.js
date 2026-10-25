@@ -1,0 +1,406 @@
+/*
+ * climate-air-overview-card — every air conditioner, air purifier and fan of the instance at a glance, one tile each,
+ * like room-overview-card (ha-room-card). The detail button shows every device; tap a tile to unfold its full card,
+ * tap its icon to turn it on or off.
+ */
+const CA_KINDS = ["aircon", "purifier", "fan"];
+const CA_AC_ICON_ANIM = { cool: "twirl", heat: "flicker", dry: "bob", fan_only: "spin", auto: "breathe", heat_cool: "breathe" };
+
+class ClimateAirOverviewCard extends CaElement {
+  static getConfigElement() {
+    return document.createElement("climate-air-overview-card-editor");
+  }
+
+  static getStubConfig() {
+    return {};
+  }
+
+  constructor() {
+    super();
+    // A click anywhere else folds the open device back and returns to the devices that are on.
+    this._onOutside = (ev) => {
+      if (ev.composedPath().includes(this) || caInDialog(ev)) return;
+      if (this._open || this._zoomed) {
+        this._open = null;
+        this._zoomed = false;
+        this._render();
+      }
+    };
+  }
+
+  setConfig(config) {
+    if (!config) throw new Error("Invalid configuration");
+    this._config = { zoom: true, group_by: "type", exclude: [], include: [], devices: [], ...config };
+    if (!this.shadowRoot) {
+      this.attachShadow({ mode: "open" });
+      this.shadowRoot.addEventListener("click", (ev) => this._onClick(ev));
+      this.shadowRoot.addEventListener("keydown", (ev) => {
+        const tile = ev.target.closest?.(".dev");
+        if (tile && ev.target === tile && (ev.key === "Enter" || ev.key === " ")) {
+          ev.preventDefault();
+          this._tap(tile.dataset.id);
+        }
+      });
+    }
+    this._sig = null;
+    this._detail = null;
+    this._render();
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    this._render();
+    if (this._detail) this._detail.hass = hass;
+  }
+
+  connectedCallback() {
+    document.addEventListener("click", this._onOutside, true);
+  }
+
+  disconnectedCallback() {
+    document.removeEventListener("click", this._onOutside, true);
+  }
+
+  getCardSize() {
+    return 1 + Math.ceil((this._items?.length || 1) / 2);
+  }
+
+  // ── Data ───────────────────────────────────────────────────────────────────
+  _collect() {
+    const h = this._hass;
+    const c = this._config;
+    const over = Object.fromEntries((c.devices || []).filter((d) => d?.entity).map((d) => [d.entity, d]));
+    const exclude = new Set(c.exclude || []);
+    const kinds = new Map();
+    for (const kind of CA_KINDS) for (const id of caFindEntities(h, kind)) kinds.set(id, kind);
+    // Added by hand: a heat-only thermostat is shown as an air conditioner, any other fan entity as a fan.
+    for (const id of c.include || []) {
+      if (!h.states[id] || kinds.has(id)) continue;
+      kinds.set(id, caKindOf(h, id) || (id.startsWith("climate.") ? "aircon" : "fan"));
+    }
+    for (const [id, o] of Object.entries(over)) if (CA_KINDS.includes(o.type) && h.states[id]) kinds.set(id, o.type);
+    return [...kinds]
+      .filter(([id]) => !exclude.has(id))
+      .map(([id, kind]) => this._item(id, kind, over[id] || {}))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  _role(id, role) {
+    return caFindRole(this._hass, caDeviceEntities(this._hass, caDeviceOf(this._hass, id)), role);
+  }
+
+  _item(id, kind, o) {
+    const h = this._hass;
+    const lang = this._lang();
+    const st = h.states[id];
+    const a = st.attributes;
+    const item = {
+      id,
+      kind,
+      name: o.name || caName(h, id),
+      area: caAreaName(h, id),
+      icon: o.icon || CA_KIND_ICONS[kind],
+      on: false,
+      alert: "",
+      anim: "",
+      spin: null,
+      color: CA_IDLE,
+    };
+    if (caUnavailable(st)) {
+      item.na = true;
+      item.text = this._t("st_unavailable");
+      return item;
+    }
+    const fmtAttr = (attr, v) => {
+      const out = h.formatEntityAttributeValue?.(st, attr, v);
+      return out && out !== v ? out : caHumanize(v);
+    };
+    if (kind === "aircon") {
+      item.on = st.state !== "off";
+      const mode = st.state;
+      const cur = a.current_temperature != null ? Number(a.current_temperature) : null;
+      const unit = h.config?.unit_system?.temperature || "°C";
+      const temp = (v) => `${caFmtNum(lang, v)} ${unit}`;
+      if (item.on) {
+        const label = h.formatEntityState?.(st) || caHumanize(mode);
+        const target = a.temperature != null && mode !== "fan_only" ? temp(Number(a.temperature)) : "";
+        item.text = [label, target].filter(Boolean).join(" · ");
+        item.color = CA_MODE_COLORS[mode] || CA_FAN_COLOR;
+        item.icon = o.icon || CA_MODE_ICONS[mode] || item.icon;
+        item.anim = CA_AC_ICON_ANIM[mode] || "breathe";
+        if (item.anim === "spin") item.spin = caSpin(50);
+      } else {
+        item.text = [this._t("st_off"), cur != null ? temp(cur) : ""].filter(Boolean).join(" · ");
+      }
+      if (this._config.show_alerts !== false && h.states[this._role(id, "filter_alert")]?.state === "on") item.alert = this._t("filter_dirty");
+    } else {
+      item.on = st.state === "on";
+      const pct = item.on ? Number(a.percentage ?? 0) : 0;
+      const preset = item.on && a.preset_mode ? fmtAttr("preset_mode", a.preset_mode) : "";
+      if (kind === "purifier") {
+        const pm25 = caNum(h.states[this._role(id, "pm25")]);
+        const aqi = caNum(h.states[this._role(id, "aqi")]);
+        const aq = caAirQuality(pm25, aqi);
+        const quality = pm25 != null ? `PM2.5 ${caFmtNum(lang, pm25, 0)}` : aqi != null ? `AQI ${caFmtNum(lang, aqi, 0)}` : "";
+        item.text = item.on ? [quality || this._t("st_purifying"), aq ? this._t(`aq_${aq.key}`) : ""].filter(Boolean).join(" · ") : [this._t("st_off"), quality].filter(Boolean).join(" · ");
+        item.color = item.on ? aq?.color || CA_FAN_COLOR : CA_IDLE;
+        item.anim = item.on ? "pulse" : "";
+        const filter = caNum(h.states[this._role(id, "filter")]);
+        if (this._config.show_alerts !== false && filter != null && filter <= 10) item.alert = this._t("filter_low");
+      } else {
+        item.text = item.on ? [`${Math.round(pct)} %`, preset].filter(Boolean).join(" · ") : this._t("st_off");
+        item.color = item.on ? CA_FAN_COLOR : CA_IDLE;
+        item.anim = item.on ? "spin" : "";
+        item.spin = caSpin(pct);
+      }
+    }
+    return item;
+  }
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+  _render() {
+    if (!this._config || !this._hass || !this.shadowRoot) return;
+    const c = this._config;
+    const all = this._collect();
+    const compact = c.zoom !== false && !this._zoomed;
+    const shown = compact ? all.filter((x) => x.on || x.alert || x.id === this._open) : all;
+    this._items = shown;
+    const sig = JSON.stringify([this._lang(), this._open, this._zoomed, c, all]);
+    if (sig === this._sig) return;
+    this._sig = sig;
+
+    if (!this.shadowRoot.querySelector("ha-card")) {
+      this.shadowRoot.innerHTML = `<style>${CA_OVERVIEW_STYLES}</style><ha-card><div class="head"></div><div class="panel" hidden></div><div class="body"></div></ha-card>`;
+    }
+    const card = this.shadowRoot.querySelector("ha-card");
+    const on = all.filter((x) => x.on);
+    const alerts = all.filter((x) => x.alert).length;
+    card.className = alerts ? "lvl-warn" : on.length ? "lvl-on" : "lvl-ok";
+    const alertChip = alerts ? `<span class="chip warn" title="${caEsc(this._t("filter"))}"><ha-icon icon="mdi:air-filter"></ha-icon><span>${alerts}</span></span>` : "";
+    const zoom =
+      c.zoom === false
+        ? ""
+        : `<button class="zoom" data-action="zoom" title="${caEsc(this._t(this._zoomed ? "zoom_out" : "zoom_in"))}" aria-label="${caEsc(this._t(this._zoomed ? "zoom_out" : "zoom_in"))}"><ha-icon icon="${this._zoomed ? "mdi:arrow-collapse" : "mdi:arrow-expand"}"></ha-icon></button>`;
+    card.querySelector(".head").innerHTML =
+      `<div class="badge"><ha-icon icon="mdi:air-filter"></ha-icon></div><div class="title">${caEsc(c.title || this._t("title"))}</div>` +
+      `${alertChip}<div class="pill">${caEsc(on.length ? this._t("running_n", { n: on.length }) : this._t("all_off"))}</div>${zoom}`;
+
+    const body = card.querySelector(".body");
+    body.style.setProperty("--cols", c.columns || 2);
+    body.classList.toggle("fixed", !!c.columns);
+    if (!all.length) body.innerHTML = `<div class="empty">${caEsc(this._t("no_devices"))}</div>`;
+    else if (!shown.length) body.innerHTML = `<div class="empty">${caEsc(this._t("nothing_on"))}</div>`;
+    else body.innerHTML = this._groups(shown).map(([title, items]) => `${title ? `<div class="group">${caEsc(title)}</div>` : ""}<div class="grid">${items.map((x) => this._tile(x)).join("")}</div>`).join("");
+
+    this._fillPanel(all.find((x) => x.id === this._open));
+  }
+
+  _groups(items) {
+    const by = this._config.group_by;
+    if (by === "type") return CA_KINDS.map((k) => [this._t(`g_${k}`), items.filter((x) => x.kind === k)]).filter(([, l]) => l.length);
+    if (by === "area") {
+      const areas = [...new Set(items.map((x) => x.area))].sort((a, b) => (!a ? 1 : !b ? -1 : a.localeCompare(b)));
+      return areas.map((a) => [a || this._t("no_area"), items.filter((x) => x.area === a)]);
+    }
+    return [["", items]];
+  }
+
+  _tile(x) {
+    const cls = ["dev", x.on ? "on" : "", x.na ? "na" : "", x.alert ? "alert" : "", x.id === this._open ? "sel" : ""].filter(Boolean).join(" ");
+    const style = `--t:${x.color};${x.spin ? `--ca-spin:${x.spin}s;` : ""}`;
+    return (
+      `<div class="${cls}" role="button" tabindex="0" data-id="${caEsc(x.id)}" style="${style}" title="${caEsc(`${x.name} — ${x.text}`)}">` +
+      `<button class="ic ${x.anim}" data-toggle="${caEsc(x.id)}" title="${caEsc(this._t("toggle"))}" aria-label="${caEsc(`${this._t("toggle")} ${x.name}`)}"${x.na ? " disabled" : ""}><ha-icon icon="${caEsc(x.icon)}"></ha-icon></button>` +
+      `<span class="name">${caEsc(x.name)}</span>` +
+      `<span class="state">${caEsc(x.text)}</span>` +
+      (x.alert ? `<span class="chips"><span class="chip warn"><ha-icon icon="mdi:air-filter"></ha-icon><span>${caEsc(x.alert)}</span></span></span>` : "") +
+      "</div>"
+    );
+  }
+
+  _onClick(ev) {
+    const path = ev.composedPath();
+    if (path.some((n) => n.classList?.contains("panel"))) return;
+    const zoom = path.find((n) => n.dataset?.action === "zoom");
+    if (zoom) {
+      this._zoomed = !this._zoomed;
+      this._render();
+      if (ev.detail === 0) this.shadowRoot.querySelector(".zoom")?.focus();
+      return;
+    }
+    const toggle = path.find((n) => n.dataset?.toggle);
+    if (toggle) {
+      if (!toggle.disabled) this._toggleDevice(toggle.dataset.toggle);
+      return;
+    }
+    const tile = path.find((n) => n.classList?.contains("dev"));
+    if (tile) this._tap(tile.dataset.id);
+  }
+
+  _toggleDevice(id) {
+    const st = this._hass.states[id];
+    if (!st) return;
+    const domain = id.split(".")[0];
+    this._hass.callService(domain, st.state === "off" ? "turn_on" : "turn_off", { entity_id: id });
+  }
+
+  _tap(id) {
+    this._open = this._open === id ? null : id;
+    this._render();
+  }
+
+  // The full card of the open device, built once and kept while it stays open.
+  _fillPanel(item) {
+    const panel = this.shadowRoot.querySelector(".panel");
+    if (!item) {
+      panel.hidden = true;
+      panel.innerHTML = "";
+      this._detail = null;
+      return;
+    }
+    panel.hidden = false;
+    if (this._detail?._caId === item.id) return;
+    const tag = `climate-air-${item.kind}-card`;
+    panel.innerHTML = "";
+    this._detail = null;
+    if (!customElements.get(tag)) return;
+    const el = document.createElement(tag);
+    el._caId = item.id;
+    el.setConfig({ type: `custom:${tag}`, entity: item.id, ...(this._config.language ? { language: this._config.language } : {}) });
+    el.hass = this._hass;
+    panel.appendChild(el);
+    this._detail = el;
+  }
+}
+
+const CA_OVERVIEW_STYLES = `
+  :host { display: block; --ca-ok: var(--success-color, #43a047); --ca-warn: var(--warning-color, #ffa600); --ca-on: var(--info-color, #039be5);
+          --ca-idle: var(--secondary-text-color, #9e9e9e); }
+  ha-card { padding: 12px; overflow: hidden; container-type: inline-size; position: relative; }
+  ha-card.lvl-ok { --c: var(--ca-idle); }
+  ha-card.lvl-on { --c: var(--ca-on); }
+  ha-card.lvl-warn { --c: var(--ca-warn); }
+  .head { display: flex; align-items: center; gap: 8px; }
+  .badge { flex: none; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center;
+           background: color-mix(in srgb, var(--c) 16%, transparent); color: var(--c); }
+  .badge ha-icon { --mdc-icon-size: 20px; }
+  .title { flex: 1; min-width: 0; font-size: 16px; font-weight: 500; color: var(--primary-text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pill { flex: none; display: inline-flex; align-items: center; font-size: 11px; font-weight: 500; padding: 1px 8px; border-radius: 999px;
+          color: var(--c); background: color-mix(in srgb, var(--c) 14%, transparent); white-space: nowrap; }
+  .chip { --k: var(--ca-idle); flex: none; display: inline-flex; align-items: center; gap: 2px; height: 18px; padding: 0 5px; border-radius: 999px;
+          font-size: 11px; font-weight: 500; line-height: 1; white-space: nowrap; color: var(--k); background: color-mix(in srgb, var(--k) 14%, transparent); }
+  .head .chip { height: 20px; padding: 0 6px; }
+  .chip ha-icon { --mdc-icon-size: 12px; }
+  .chip.on { --k: var(--ca-on); }
+  .chip.warn { --k: var(--ca-warn); }
+  @container (max-width: 340px) { .head { gap: 6px; } .head .chip { display: none; } }
+  .zoom { all: unset; flex: none; cursor: pointer; width: 24px; height: 24px; margin: -4px -4px -4px 0; border-radius: 50%;
+          display: grid; place-items: center; color: var(--secondary-text-color); }
+  .zoom ha-icon { --mdc-icon-size: 16px; }
+  .zoom:hover { background: color-mix(in srgb, var(--ca-idle) 16%, transparent); color: var(--primary-text-color); }
+  .zoom:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 1px; }
+
+  .group { margin: 10px 0 0; font-size: 11px; font-weight: 500; color: var(--secondary-text-color); text-transform: uppercase; letter-spacing: .04em; }
+  .grid { display: grid; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); gap: 6px; margin-top: 6px; }
+  .body > .grid:first-child { margin-top: 8px; }
+  @container (max-width: 340px) { .body:not(.fixed) .grid { grid-template-columns: minmax(0, 1fr); } }
+  .empty { padding: 12px; margin-top: 8px; text-align: center; font-size: 13px; color: var(--secondary-text-color);
+           border-radius: 10px; background: var(--secondary-background-color, transparent); }
+
+  .dev { --t: var(--ca-idle); box-sizing: border-box; cursor: pointer; min-width: 0; display: grid; grid-template-columns: 28px minmax(0, 1fr);
+         grid-template-areas: "ic name" "ic state" "chips chips"; column-gap: 7px; align-items: center; align-content: start;
+         padding: 6px 7px; border-radius: 10px; background: var(--secondary-background-color, transparent); border: 1px solid transparent;
+         transition: background .2s, border-color .2s; outline: none; }
+  .dev.on { background: color-mix(in srgb, var(--t) 9%, var(--secondary-background-color, transparent)); border-color: color-mix(in srgb, var(--t) 24%, transparent); }
+  .dev.alert { border-color: color-mix(in srgb, var(--ca-warn) 45%, transparent); }
+  .dev.na { opacity: .6; }
+  .dev:hover { background: color-mix(in srgb, var(--t) 14%, var(--secondary-background-color, transparent)); }
+  .dev:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+  .dev.sel { border-color: color-mix(in srgb, var(--primary-color) 60%, transparent); }
+  .ic { all: unset; grid-area: ic; align-self: start; cursor: pointer; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+        color: var(--primary-text-color); background: color-mix(in srgb, var(--ca-idle) 14%, transparent); transition: background .2s, color .2s; }
+  .dev.on .ic { color: var(--t); background: color-mix(in srgb, var(--t) 18%, transparent); }
+  .ic:hover { box-shadow: 0 0 0 2px color-mix(in srgb, var(--t) 35%, transparent); }
+  .ic:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 1px; }
+  .ic:disabled { cursor: default; }
+  .ic ha-icon { --mdc-icon-size: 16px; display: flex; }
+  .ic.spin ha-icon { animation: ca-spin var(--ca-spin, 1s) linear infinite; }
+  .ic.twirl ha-icon { animation: ca-spin 6s linear infinite; }
+  .ic.flicker ha-icon { animation: ca-flicker 1.4s ease-in-out infinite; transform-origin: 50% 90%; }
+  .ic.bob ha-icon { animation: ca-bob 1.8s ease-in-out infinite; }
+  .ic.breathe ha-icon { animation: ca-breathe 2.4s ease-in-out infinite; }
+  .ic.pulse { animation: ca-ring 2.2s ease-out infinite; }
+  .name { grid-area: name; font-size: 13px; font-weight: 500; line-height: 1.2; color: var(--primary-text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .state { grid-area: state; font-size: 11px; line-height: 1.25; color: var(--secondary-text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dev.on .state { color: var(--t); }
+  .chips { grid-area: chips; display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+
+  .panel { margin-top: 8px; border-radius: 12px; overflow: hidden; background: var(--secondary-background-color, transparent);
+           --ha-card-background: transparent; --card-background-color: transparent; --ha-card-box-shadow: none; --ha-card-border-width: 0; }
+  .panel[hidden] { display: none; }
+
+  @keyframes ca-spin { to { transform: rotate(360deg); } }
+  @keyframes ca-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(.85); } }
+  @keyframes ca-flicker { 0%, 100% { transform: scale(1, 1); } 30% { transform: scale(.92, 1.08); } 60% { transform: scale(1.05, .94); } }
+  @keyframes ca-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(2px); } }
+  @keyframes ca-ring { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--t) 50%, transparent); } 100% { box-shadow: 0 0 0 7px transparent; } }
+  @media (prefers-reduced-motion: reduce) { .ic, .ic ha-icon { animation: none !important; } .dev { transition: none; } }
+`;
+
+// ── Editor ───────────────────────────────────────────────────────────────────
+class ClimateAirOverviewCardEditor extends CaCardEditor {
+  _defaults() {
+    return { zoom: true, group_by: "type" };
+  }
+
+  _helpers() {
+    return ["title", "columns", "exclude", "include", "language", "devices"];
+  }
+
+  _schema() {
+    const lang = caLang(this._config, this._hass);
+    const found = CA_KINDS.flatMap((k) => caFindEntities(this._hass, k));
+    for (const id of this._config?.exclude || []) if (!found.includes(id)) found.push(id);
+    return [
+      { name: "title", selector: { text: {} } },
+      {
+        type: "grid",
+        name: "",
+        schema: [
+          {
+            name: "group_by",
+            selector: {
+              select: {
+                mode: "dropdown",
+                options: ["type", "area", "none"].map((v) => ({ value: v, label: caT(lang, `ed_group_${v}`) })),
+              },
+            },
+          },
+          { name: "columns", selector: { number: { min: 1, max: 6, mode: "box" } } },
+        ],
+      },
+      { name: "zoom", selector: { boolean: {} } },
+      { name: "exclude", selector: { entity: { multiple: true, include_entities: found } } },
+      { name: "include", selector: { entity: { multiple: true, domain: ["climate", "fan"] } } },
+      ...caAdvanced(lang, "language", "devices"),
+    ];
+  }
+
+  _render() {
+    super._render();
+    if (!this._form) return;
+    const lang = caLang(this._config, this._hass);
+    const helpers = this._helpers();
+    this._form.computeHelper = (s) =>
+      s.name === "zoom" ? caT(lang, "ed_ov_zoom_helper") : helpers.includes(s.name) ? caEditorHelper(lang, s.name) : undefined;
+  }
+}
+
+caRegister(
+  "climate-air-overview-card",
+  ClimateAirOverviewCard,
+  "Climate Air · Overview Card",
+  "Every air conditioner, air purifier and fan at a glance; tap a device for its full card",
+  ClimateAirOverviewCardEditor,
+);
+

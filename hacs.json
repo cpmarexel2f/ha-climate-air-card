@@ -1,0 +1,7 @@
+{
+  "name": "Climate Air Cards",
+  "render_readme": true,
+  "content_in_root": false,
+  "filename": "ha-climate-air-card.js",
+  "homeassistant": "2024.8.0"
+}
