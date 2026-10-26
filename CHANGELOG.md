@@ -1,7 +1,6 @@
 # Changelog
 
-## Unreleased
-
+## 1.4.0
 ### Changes
 - Header icon sized like the other ha-* cards: the overview's round badge grows from 36px to 40px, and the icon in every badge is 24px (20px in the mini cards' 32px badge).
 - Mini cards: the title is 16px like the full cards' (it was 14px); a long name still ends with an ellipsis.
