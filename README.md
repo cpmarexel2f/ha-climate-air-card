@@ -46,10 +46,10 @@ All the cards share the same look (header with a status pill and a power button,
 `custom:climate-air-purifier-card` — An air purifier (`fan` entity) and the sensors of its device.
 
 - The PM2.5 density (or the air quality index) in large, with its level: *Good air*, *Moderate air*, *Poor air*, *Very poor air*; the card takes the colour of the air quality
-- Animated illustration while it runs: the fan turns (faster with the speed), clean air rises and dust is drawn into the intake; the display ring and the floor light take the air quality colour. Three shapes: a tower (a tall box whose display shows the PM2.5), a round purifier and a square box, picked from the device model or set with `illustration`
+- Animated illustration while it runs: the fan turns (faster with the speed), clean air rises and dust is drawn into the intake; the display ring and the floor light take the air quality colour. Four shapes: a tower (a tall box whose display shows the PM2.5), a round purifier, a square box and a Dyson-style bladeless loop, picked from the device model or set with `illustration`
 - Filter life bar (with its hours of use on hover) and a *Replace the filter* alert at 10 % or less
 - Presets as segmented buttons (Auto, Sleep, Favorite…), or the device's mode select when it has no presets (HomeKit purifiers); speed slider; favorite level in the Favorite preset
-- Temperature, humidity and PM10 chips; child lock, sound and indicator light toggles
+- Temperature, humidity, PM10 and, when the device reports them, VOC and NO₂ chips (Dyson); child lock, sound and indicator light toggles
 
 ### Fan
 
@@ -83,7 +83,7 @@ All the cards share the same look (header with a status pill and a power button,
 ## Prerequisites
 
 - Home Assistant 2024.8 or later
-- Air purifiers and fans as `fan` entities, air conditioners as `climate` entities, from any integration (Xiaomi Home, Xiaomi Miio, HomeKit Device, Matter, Midea…)
+- Air purifiers and fans as `fan` entities, air conditioners as `climate` entities, from any integration (Xiaomi Home, Xiaomi Miio, HomeKit Device, Matter, Midea, Dyson…)
 
 ## Installation
 
@@ -122,7 +122,7 @@ The purifier, fan and air conditioner cards, and their mini cards, share these o
 | `entity` | ❌ | First found | The `fan` or `climate` entity of the device; without it, the card takes the first device of its kind |
 | `name` | ❌ | Device name | Card title |
 | `icon` | ❌ | Illustration | Replaces the illustration with an icon |
-| `illustration` | ❌ | `auto` | Purifier: `tower`, `cylinder` or `box`; air conditioner: `split`, `portable` or `window`. `auto` picks one from the device model and name |
+| `illustration` | ❌ | `auto` | Purifier: `tower`, `cylinder`, `box` or `dyson` (bladeless loop); air conditioner: `split`, `portable` or `window`. `auto` picks one from the device model and name |
 | `show_controls` | ❌ | `true` | Show the controls (presets, speed, modes, options) |
 | `show_sensors` | ❌ | `true` | Show the measurement chips (temperature, humidity, PM10, outdoor temperature, power) |
 | `show_alerts` | ❌ | `true` | Show the filter alerts |
@@ -166,7 +166,7 @@ devices:
 |---|---|---|---|
 | `title` | ❌ | Climate & air | Card title |
 | `icon` | ❌ | `mdi:air-filter` | Header icon |
-| `illustrations` | ❌ | Auto | Tile illustrations, by kind of device (`aircon`, `purifier`) and by entity ID, the device's own winning: purifier `tower`, `cylinder` or `box`; air conditioner `split`, `portable` or `window`. Unset or `auto`: guessed from the device model and name. The unfolded card uses the same one. In the visual editor's **Device types** and **Devices** sections |
+| `illustrations` | ❌ | Auto | Tile illustrations, by kind of device (`aircon`, `purifier`) and by entity ID, the device's own winning: purifier `tower`, `cylinder`, `box` or `dyson`; air conditioner `split`, `portable` or `window`. Unset or `auto`: guessed from the device model and name. The unfolded card uses the same one. In the visual editor's **Device types** and **Devices** sections |
 | `icons` | ❌ | — | An icon instead of the illustration, by kind of device (`aircon`, `purifier`, `fan`) or by entity ID; it moves with the device state (turning fan, mode icon of an air conditioner). In the visual editor's **Device types** and **Devices** sections |
 | `group_by` | ❌ | `type` | `type` (air conditioners, air purifiers, fans), `area` or `none` |
 | `columns` | ❌ | `2` | Number of tile columns (1 on narrow cards unless set) |
@@ -205,8 +205,9 @@ The cards find the other entities of the device by their registry translation ke
 | Key | Domain | Card | Used for |
 |---|---|---|---|
 | `pm25` / `pm10` | `sensor` | Purifier | Particle density, air quality colour |
+| `voc` / `no2` | `sensor` | Purifier | Volatile organic compounds and nitrogen dioxide index (Dyson) |
 | `aqi` | `sensor` | Purifier | Air quality index, when there is no PM2.5 sensor |
-| `filter` / `filter_hours` | `sensor` | Purifier | Filter life (%) and hours of use |
+| `filter` / `filter_hours` | `sensor` | Purifier | Filter life (%) and hours of use. Dyson's HEPA (or combined) filter is used, not its carbon one |
 | `status` | `sensor` | Purifier | State shown while on (*Purifying*, *Idle*…) |
 | `mode` | `select` | Purifier | Mode buttons, when the fan entity has no presets |
 | `favorite` | `number` | Purifier | Favorite level |
@@ -236,6 +237,10 @@ The air purifier draws air in: the side inlets pull it through, the base glows a
 
 ![air purifier animation](https://raw.githubusercontent.com/juju35/ha-climate-air-card/main/screenshots/purifier.gif)
 
+A Dyson-style bladeless purifier has no blades to turn: clean air streams up through its hollow loop instead.
+
+![Dyson bladeless purifier animation](https://raw.githubusercontent.com/juju35/ha-climate-air-card/main/screenshots/purifier-dyson.gif)
+
 The fan spins its blades, the head slowly oscillates from side to side, and gusts of air stream out in front of it.
 
 ![fan animation](https://raw.githubusercontent.com/juju35/ha-climate-air-card/main/screenshots/fan.gif)
@@ -254,6 +259,7 @@ The overview gathers every device: each tile's icon moves to match its appliance
 | Overview, a device unfolded | ![](https://raw.githubusercontent.com/juju35/ha-climate-air-card/main/screenshots/overview-details.png) | ![](https://raw.githubusercontent.com/juju35/ha-climate-air-card/main/screenshots/overview-details-dark.png) |
 | Air purifier, filter to replace | ![](https://raw.githubusercontent.com/juju35/ha-climate-air-card/main/screenshots/purifier-alert.png) | ![](https://raw.githubusercontent.com/juju35/ha-climate-air-card/main/screenshots/purifier-alert-dark.png) |
 | Air purifier, round and box | ![](https://raw.githubusercontent.com/juju35/ha-climate-air-card/main/screenshots/purifier-round.png) ![](https://raw.githubusercontent.com/juju35/ha-climate-air-card/main/screenshots/purifier-box.png) | ![](https://raw.githubusercontent.com/juju35/ha-climate-air-card/main/screenshots/purifier-round-dark.png) ![](https://raw.githubusercontent.com/juju35/ha-climate-air-card/main/screenshots/purifier-box-dark.png) |
+| Air purifier, Dyson bladeless | ![](https://raw.githubusercontent.com/juju35/ha-climate-air-card/main/screenshots/purifier-dyson.png) | ![](https://raw.githubusercontent.com/juju35/ha-climate-air-card/main/screenshots/purifier-dyson-dark.png) |
 | Fan | ![](https://raw.githubusercontent.com/juju35/ha-climate-air-card/main/screenshots/fan-card.png) | ![](https://raw.githubusercontent.com/juju35/ha-climate-air-card/main/screenshots/fan-card-dark.png) |
 | Air conditioner, heating | ![](https://raw.githubusercontent.com/juju35/ha-climate-air-card/main/screenshots/aircon-heat.png) | ![](https://raw.githubusercontent.com/juju35/ha-climate-air-card/main/screenshots/aircon-heat-dark.png) |
 | Air conditioner, portable and window split | ![](https://raw.githubusercontent.com/juju35/ha-climate-air-card/main/screenshots/aircon-portable.png) ![](https://raw.githubusercontent.com/juju35/ha-climate-air-card/main/screenshots/aircon-window.png) | ![](https://raw.githubusercontent.com/juju35/ha-climate-air-card/main/screenshots/aircon-portable-dark.png) ![](https://raw.githubusercontent.com/juju35/ha-climate-air-card/main/screenshots/aircon-window-dark.png) |
