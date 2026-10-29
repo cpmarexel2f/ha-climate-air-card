@@ -145,3 +145,35 @@ test("de and es are picked from Home Assistant or the card's language option", (
   assert.equal(lib.caValueLabel("es", "level_3"), "Nivel 3");
   assert.equal(lib.caValueLabel("de", "Level4"), "Stufe 4");
 });
+
+test("the device lists follow states that arrive after the registry", () => {
+  const full = makeHass();
+  const states = { ...full.states };
+  delete states["fan.bedroom_purifier"];
+  assert.deepEqual(json(lib.caFindEntities({ ...full, states }, "purifier")), ["fan.dyson_pure_cool", "fan.living_room_purifier_air_purifier"]);
+  assert.deepEqual(json(lib.caFindEntities({ ...full, states: { ...full.states } }, "purifier")), [
+    "fan.bedroom_purifier",
+    "fan.dyson_pure_cool",
+    "fan.living_room_purifier_air_purifier",
+  ]);
+});
+
+test("roles are found on a German or Spanish installation, and VOC / NO₂ by device class", () => {
+  const h = makeHass();
+  const add = (id, attributes = {}) => {
+    h.states[id] = { entity_id: id, state: "1", attributes };
+    h.entities[id] = { entity_id: id, device_id: "dev_x", platform: "mock" };
+  };
+  add("climate.klimaanlage", { hvac_modes: ["off", "cool"] });
+  add("sensor.klimaanlage_aussentemperatur", { device_class: "temperature" });
+  add("sensor.klimaanlage_kompressorfrequenz");
+  add("sensor.klimaanlage_luftqualitat_index", { device_class: "volatile_organic_compounds_parts" });
+  add("sensor.klimaanlage_no2_wert", { device_class: "nitrogen_dioxide" });
+  add("number.klimaanlage_temporizador");
+  const list = lib.caDeviceEntities(h, "dev_x");
+  assert.equal(lib.caFindRole(h, list, "outdoor_temp"), "sensor.klimaanlage_aussentemperatur");
+  assert.equal(lib.caFindRole(h, list, "compressor"), "sensor.klimaanlage_kompressorfrequenz");
+  assert.equal(lib.caFindRole(h, list, "voc"), "sensor.klimaanlage_luftqualitat_index");
+  assert.equal(lib.caFindRole(h, list, "no2"), "sensor.klimaanlage_no2_wert");
+  assert.equal(lib.caFindRole(h, list, "timer"), "number.klimaanlage_temporizador");
+});

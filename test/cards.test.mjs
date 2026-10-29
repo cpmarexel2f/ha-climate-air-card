@@ -352,3 +352,37 @@ test("air conditioner options get the card's labels, the integration naming them
   assert.match(out, /<\/ha-icon>Odd thing<\/button>/);
   assert.doesNotMatch(out, />(Prompt tone|Screen display|Self clean|Smart eye)</);
 });
+
+test("a state that arrives after the registry is still found (Home Assistant starting up)", () => {
+  const full = makeHass();
+  const states = { ...full.states };
+  delete states["sensor.living_room_purifier_pm2_5_density"];
+  const early = { ...full, states };
+  const el = mount(lib, "climate-air-purifier-card", { entity: "fan.living_room_purifier_air_purifier" }, early);
+  assert.equal(el._r.ent.pm25, undefined);
+  // Same registry object, every state now there.
+  el.hass = { ...full, states: { ...full.states } };
+  assert.equal(el._r.ent.pm25, "sensor.living_room_purifier_pm2_5_density");
+});
+
+test("air conditioner: a 0.1 step sends a rounded target, and a refused call is not an unhandled rejection", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const h = makeHass();
+  const st = h.states["climate.air_conditioner"];
+  h.states["climate.air_conditioner"] = { ...st, attributes: { ...st.attributes, target_temp_step: 0.1, temperature: 21.2 } };
+  h.callService = (domain, service, data) => {
+    h.calls.push([domain, service, data]);
+    return Promise.reject(new Error("out of range"));
+  };
+  const unhandled = [];
+  const onUnhandled = (e) => unhandled.push(e);
+  process.on("unhandledRejection", onUnhandled);
+  const el = mount(lib, "climate-air-aircon-card", { entity: "climate.air_conditioner" }, h);
+  el._action("temp", "1");
+  t.mock.timers.tick(1000);
+  await new Promise((r) => setImmediate(r));
+  process.off("unhandledRejection", onUnhandled);
+  assert.deepEqual(JSON.parse(JSON.stringify(h.calls)), [["climate", "set_temperature", { entity_id: "climate.air_conditioner", temperature: 21.3 }]]);
+  assert.equal(unhandled.length, 0);
+  assert.equal(el._pendingTemp, undefined);
+});

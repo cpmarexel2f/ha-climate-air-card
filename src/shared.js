@@ -23,6 +23,7 @@ const CA_I18N = {
     speed: "Speed",
     mode: "Mode",
     preset: "Preset",
+    colon: ": ",
     oscillation: "Oscillation",
     angle: "Angle",
     timer: "Timer",
@@ -141,6 +142,7 @@ const CA_I18N = {
     speed: "Vitesse",
     mode: "Mode",
     preset: "Préréglage",
+    colon: " : ",
     oscillation: "Oscillation",
     angle: "Angle",
     timer: "Minuterie",
@@ -260,6 +262,7 @@ const CA_I18N = {
     speed: "Geschwindigkeit",
     mode: "Modus",
     preset: "Voreinstellung",
+    colon: ": ",
     oscillation: "Oszillation",
     angle: "Winkel",
     timer: "Timer",
@@ -378,6 +381,7 @@ const CA_I18N = {
     speed: "Velocidad",
     mode: "Modo",
     preset: "Preajuste",
+    colon: ": ",
     oscillation: "Oscilación",
     angle: "Ángulo",
     timer: "Temporizador",
@@ -523,7 +527,7 @@ const CA_VALUES = {
     activity: "Activité", purifying: "Purification", idle: "En veille", inactive: "Inactif", purify: "Purification",
   },
   de: {
-    auto: "Auto", automatic: "Automatisch", manual: "Manuell", smart: "Smart", sleep: "Schlafen", night: "Nacht", favorite: "Favorit", favourite: "Favorit", silent: "Leise", quiet: "Leise", turbo: "Turbo", boost: "Boost", strong: "Stark", max: "Max", natural: "Natürlich", natural_wind: "Natürlicher Wind", nature: "Natürlich", straight: "Direkt", straight_wind: "Direkter Wind", direct: "Direkt", direct_wind: "Direkter Wind", standard: "Standard", normal: "Normal", baby: "Baby", low: "Niedrig", middle: "Mittel", medium: "Mittel", mid: "Mittel", high: "Hoch", full: "Voll", fixed: "Fest", off: "Aus", on: "An", vertical: "Vertikal", horizontal: "Horizontal", both: "Beide", none: "Keine", comfort: "Komfort", eco: "Eco", away: "Abwesend", home: "Zuhause", activity: "Aktivität", purifying: "Reinigt", idle: "Leerlauf", inactive: "Inaktiv", purify: "Reinigen",
+    auto: "Auto", automatic: "Automatisch", manual: "Manuell", smart: "Smart", sleep: "Schlafmodus", night: "Nacht", favorite: "Favorit", favourite: "Favorit", silent: "Leise", quiet: "Leise", turbo: "Turbo", boost: "Boost", strong: "Stark", max: "Max", natural: "Natürlich", natural_wind: "Natürlicher Wind", nature: "Natürlich", straight: "Direkt", straight_wind: "Direkter Wind", direct: "Direkt", direct_wind: "Direkter Wind", standard: "Standard", normal: "Normal", baby: "Baby", low: "Niedrig", middle: "Mittel", medium: "Mittel", mid: "Mittel", high: "Hoch", full: "Voll", fixed: "Fest", off: "Aus", on: "An", vertical: "Vertikal", horizontal: "Horizontal", both: "Beide", none: "Keine", comfort: "Komfort", eco: "Eco", away: "Abwesend", home: "Zuhause", activity: "Aktivität", purifying: "Reinigt", idle: "Leerlauf", inactive: "Inaktiv", purify: "Reinigen",
   },
   es: {
     auto: "Auto", automatic: "Automático", manual: "Manual", smart: "Inteligente", sleep: "Dormir", night: "Noche", favorite: "Favorito", favourite: "Favorito", silent: "Silencioso", quiet: "Silencioso", turbo: "Turbo", boost: "Boost", strong: "Fuerte", max: "Máx.", natural: "Natural", natural_wind: "Viento natural", nature: "Natural", straight: "Directo", straight_wind: "Viento directo", direct: "Directo", direct_wind: "Viento directo", standard: "Estándar", normal: "Normal", baby: "Bebé", low: "Bajo", middle: "Medio", medium: "Medio", mid: "Medio", high: "Alto", full: "Máximo", fixed: "Fijo", off: "Apagado", on: "Encendido", vertical: "Vertical", horizontal: "Horizontal", both: "Ambos", none: "Ninguno", comfort: "Confort", eco: "Eco", away: "Ausente", home: "En casa", activity: "Actividad", purifying: "Purificando", idle: "En espera", inactive: "Inactivo", purify: "Purificar",
@@ -625,8 +629,8 @@ const CA_CLIMATE_SWING = 32;
 const caDc = (dc) => (st) => st.attributes.device_class === dc;
 
 // Entities a device may have next to its fan or climate entity. Each role is looked up by its registry
-// translation_key, then by the entity_id (English and French slugs), then by its attributes, so that it works
-// with Xiaomi Home, Xiaomi Miio, HomeKit, Matter or Midea entities alike.
+// translation_key, then by the entity_id (English, French, German and Spanish slugs), then by its attributes, so
+// that it works with Xiaomi Home, Xiaomi Miio, HomeKit, Matter or Midea entities alike.
 const CA_ROLES = {
   temperature: { domain: "sensor", test: caDc("temperature") },
   humidity: { domain: "sensor", test: caDc("humidity") },
@@ -643,29 +647,36 @@ const CA_ROLES = {
     avoid: /(carbon|charbon|used|utilis|hours|heures)/,
   },
   filter_hours: { domain: "sensor", keys: ["filter_hours_used", "filter_use"], id: /filt(er|re).*(used|hours|heures|utilis)/ },
-  voc: { domain: "sensor", id: /(volatile_organic|_vocs?\b|\bcov\b|composes_organiques)/ },
-  no2: { domain: "sensor", id: /(nitrogen_dioxide|_no2\b|dioxyde_d?_?azote)/ },
+  voc: {
+    domain: "sensor",
+    id: /(volatile_organic|_vocs?\b|\bcov\b|composes_organiques|fluchtige_organische|compuestos_organicos)/,
+    test: (st) => /^volatile_organic_compounds(_parts)?$/.test(st.attributes.device_class || ""),
+  },
+  no2: { domain: "sensor", id: /(nitrogen_dioxide|_no2\b|dioxyde_d?_?azote|stickstoffdioxid|dioxido_de_nitrogeno)/, test: caDc("nitrogen_dioxide") },
   status: { domain: "sensor", keys: ["air_purifier_status"], id: /(purifier_status|purificateur.*statut)/ },
   mode: { domain: "select", keys: ["air_purifier_mode"], id: /(purifier_mode|_mode)$/ },
   child_lock: { domain: "switch", keys: ["child_lock"], id: /(child_lock|physical_control|securite_enfant|verrouillage)/ },
   buzzer: { domain: "switch", keys: ["buzzer", "alarm"], id: /(buzzer|alarm|sound|_son_|_son$|bip)/ },
-  light: { domain: "light", id: /(indicator|_led|voyant|display)/ },
-  brightness: { domain: "select", id: /(brightness|luminosit)/ },
+  light: { domain: "light", id: /(indicator|indicador|_led|voyant|display|anzeige|pantalla)/ },
+  brightness: { domain: "select", id: /(brightness|luminosit|helligkeit|brillo)/ },
   favorite: { domain: "number", keys: ["favorite_level"], id: /favorite/ },
-  angle: { domain: ["number", "select"], id: /(angle|swing_included)/ },
-  timer: { domain: "number", id: /(countdown|delay_time|off_delay|timer|minuterie|power_off_time)/ },
-  rotate_left: { domain: "button", id: /(turn_left|rotate_left|tourner_a_gauche)/ },
-  rotate_right: { domain: "button", id: /(turn_right|rotate_right|tourner_a_droite)/ },
+  angle: { domain: ["number", "select"], id: /(angle|angulo|winkel|swing_included)/ },
+  timer: { domain: "number", id: /(countdown|delay_time|off_delay|timer|minuterie|power_off_time|temporizador|ausschaltzeit)/ },
+  rotate_left: { domain: "button", id: /(turn_left|rotate_left|tourner_a_gauche|nach_links|a_la_izquierda)/ },
+  rotate_right: { domain: "button", id: /(turn_right|rotate_right|tourner_a_droite|nach_rechts|a_la_derecha)/ },
   anion: { domain: "switch", id: /(anion|ioni)/ },
-  indoor_temp: { domain: "sensor", id: /(indoor_temperature|temperature_interieure)$/ },
-  outdoor_temp: { domain: "sensor", id: /(outdoor_temperature|temperature_exterieure)(_\d+)?$/ },
+  indoor_temp: { domain: "sensor", id: /(indoor_temperature|temperature_interieure|innentemperatur|temperatura_interior)$/ },
+  outdoor_temp: { domain: "sensor", id: /(outdoor_temperature|temperature_exterieure|aussentemperatur|temperatura_exterior)(_\d+)?$/ },
   power: {
     domain: "sensor",
     id: /(real_time_power|current_power|puissance_instantanee)/,
-    test: (st, id) => st.attributes.device_class === "power" && !/compressor|compresseur/.test(id),
+    test: (st, id) => st.attributes.device_class === "power" && !/compressor|compresseur|kompressor|compresor/.test(id),
   },
-  filter_alert: { domain: "binary_sensor", id: /(dust|filter|filtre)/ },
-  compressor: { domain: "sensor", id: /(?<!target_)(compressor_frequency|frequence_compresseur)$/ },
+  filter_alert: { domain: "binary_sensor", id: /(dust|filter|filtre|filtro|staub|polvo)/ },
+  compressor: {
+    domain: "sensor",
+    id: /(?<!target_)(compressor_frequency|frequence_compresseur|kompressorfrequenz|frecuencia_del_compresor)$/,
+  },
 };
 
 // Registry entries grouped by device, built once per `hass.entities` object (it only changes with the registry).
@@ -689,16 +700,30 @@ function caDeviceEntities(hass, deviceId) {
   return (caByDevice(hass.entities).get(deviceId) || []).filter((e) => hass.states[e.entity_id]);
 }
 
+// Number of states, counted once per `hass.states` object (every card of the dashboard shares the same one).
+const caStateCounts = new WeakMap();
+function caStateCount(states) {
+  if (!states) return 0;
+  let n = caStateCounts.get(states);
+  if (n === undefined) caStateCounts.set(states, (n = Object.keys(states).length));
+  return n;
+}
+
 // Memo for lookups that scan the registry or all of `hass.states` (kind of device, roles, entity lists), keyed on
-// the `hass.entities` object like caRegistryIndex: it is only replaced when the registry changes.
+// the `hass.entities` object like caRegistryIndex. The results also depend on which states exist: the memo starts
+// over when the number of states changes (states still arriving while Home Assistant starts, after the registry),
+// and a miss (no such role, unknown kind) is never kept, so an entity that shows up later is found.
 const caMemoStore = new WeakMap();
 function caMemo(hass, key, compute) {
   const reg = hass?.entities;
   if (!reg) return compute();
+  const count = caStateCount(hass.states);
   let memo = caMemoStore.get(reg);
-  if (!memo) caMemoStore.set(reg, (memo = new Map()));
-  if (!memo.has(key)) memo.set(key, compute());
-  return memo.get(key);
+  if (!memo || memo.count !== count) caMemoStore.set(reg, (memo = { count, map: new Map() }));
+  if (memo.map.has(key)) return memo.map.get(key);
+  const value = compute();
+  if (value != null) memo.map.set(key, value);
+  return value;
 }
 
 function caFindRole(hass, list, role) {
@@ -764,7 +789,8 @@ function caKindOf(hass, id) {
   });
 }
 
-// A role of an entity's device, memoized per registry: the whole-device scans only run again when it changes.
+// A role of an entity's device, memoized (see caMemo): the whole-device scans only run again when the registry
+// or the set of states changes.
 function caRoleOf(hass, id, role) {
   return caMemo(hass, `role:${id}:${role}`, () => caFindRole(hass, caDeviceEntities(hass, caDeviceOf(hass, id)), role));
 }
@@ -1095,7 +1121,7 @@ class CaCard extends CaElement {
       const opts = Array.from({ length: count }, (_, i) => +(min + i * step).toFixed(4));
       if (!opts.includes(v)) opts.push(v);
       opts.sort((x, y) => x - y);
-      const text = (o) => (o === 0 && /timer|countdown|delay|minuterie/.test(id) ? this._t("timer_off") : `${caFmtNum(this._lang(), o)}${unit ? ` ${unit}` : ""}`);
+      const text = (o) => (o === 0 && /timer|countdown|delay|minuterie|temporizador|ausschalt/.test(id) ? this._t("timer_off") : `${caFmtNum(this._lang(), o)}${unit ? ` ${unit}` : ""}`);
       return `<label class="field"><span>${caEsc(label)}</span><select data-number="${caEsc(id)}">${opts
         .map((o) => `<option value="${o}"${o === v ? " selected" : ""}>${caEsc(text(o))}</option>`)
         .join("")}</select></label>`;
@@ -1140,8 +1166,10 @@ class CaCard extends CaElement {
   }
 
   // ── Actions ──
+  // A refusal (out of range, entity unavailable) is already reported by Home Assistant's own toast: it must not
+  // also surface as an unhandled rejection.
   _call(domain, service, data) {
-    return this._hass.callService(domain, service, data);
+    return Promise.resolve(this._hass.callService(domain, service, data)).catch(() => {});
   }
 
   _onClick(ev) {
@@ -1387,7 +1415,7 @@ const CA_STYLES = `${CA_ART_STYLES}
            background: var(--secondary-background-color, rgba(128,128,128,.1)) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23888' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E") no-repeat right 6px center / 20px; }
   .slider { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--secondary-text-color); }
   .slider ha-icon { --mdc-icon-size: 18px; flex-shrink: 0; }
-  .slider .sl-label { flex-shrink: 0; min-width: 52px; }
+  .slider .sl-label { flex-shrink: 1; min-width: 0; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .slider .v { min-width: 44px; text-align: right; font-weight: 500; color: var(--primary-text-color); font-variant-numeric: tabular-nums; }
   input[type=range] { flex: 1; min-width: 0; height: 22px; margin: 0; background: none; appearance: none; -webkit-appearance: none; cursor: pointer; }
   input[type=range]::-webkit-slider-runnable-track { height: 6px; border-radius: 3px;
