@@ -723,8 +723,8 @@ function caT(lang, key, vars) {
 }
 
 function caLang(config, hass) {
-  const l = (config?.language || hass?.language || globalThis.document?.documentElement?.lang || "en").split("-")[0];
-  return CA_I18N[l] ? l : "en";
+  const raw = config?.language || hass?.language || globalThis.document?.documentElement?.lang || "en";
+  return CA_I18N[raw] ? raw : (CA_I18N[raw.split("-")] ? raw.split("-") : "en");
 }
 
 function caEsc(s) {
